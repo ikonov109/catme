@@ -20,7 +20,6 @@
             border-radius: 20px;
             display: flex;
             overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         .sidebar {
             width: 300px;
@@ -40,8 +39,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            border-bottom: 1px solid #dee2e6;
             background: white;
+            border-bottom: 1px solid #dee2e6;
         }
         .avatar {
             width: 40px;
@@ -52,12 +51,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
         }
         .contacts {
             flex: 1;
             overflow-y: auto;
-            padding: 10px 0;
         }
         .contact {
             padding: 12px 15px;
@@ -66,10 +63,9 @@
             gap: 10px;
             cursor: pointer;
             border-bottom: 1px solid #dee2e6;
-            transition: background 0.2s;
         }
         .contact:hover { background: #e9ecef; }
-        .contact .status-dot {
+        .contact .dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
@@ -86,9 +82,6 @@
             padding: 20px;
             border-bottom: 1px solid #dee2e6;
             background: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
         .messages {
             flex: 1;
@@ -113,14 +106,13 @@
         }
         .bubble {
             padding: 12px 16px;
-            word-wrap: break-word;
         }
         .message-input {
             padding: 20px;
             display: flex;
             gap: 10px;
-            border-top: 1px solid #dee2e6;
             background: white;
+            border-top: 1px solid #dee2e6;
         }
         .message-input input {
             flex: 1;
@@ -152,17 +144,12 @@
             width: 400px;
             text-align: center;
         }
-        .login-form h2 {
-            margin-bottom: 20px;
-            color: #6d28d9;
-        }
         .login-form input {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
             border: 2px solid #dee2e6;
             border-radius: 8px;
-            font-size: 16px;
         }
         .login-form .btn-group {
             display: flex;
@@ -176,34 +163,14 @@
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 16px;
         }
-        .btn-login {
-            background: #6d28d9;
-            color: white;
-        }
-        .btn-register {
-            background: #10b981;
-            color: white;
-        }
-        .btn-login:hover { background: #5b21b6; }
-        .btn-register:hover { background: #059669; }
-        .online-badge {
-            background: #10b981;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
-        .section-header {
+        .btn-login { background: #6d28d9; color: white; }
+        .btn-register { background: #10b981; color: white; }
+        .section {
             padding: 8px 15px;
             background: #e9ecef;
             font-weight: bold;
-            color: #495057;
             font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
     </style>
 </head>
@@ -224,17 +191,9 @@
         </div>
         <div class="chat-area">
             <div class="chat-header" id="chatHeader">
-                <div class="avatar" id="contactAvatar">🐱</div>
-                <div>
-                    <h3 id="contactName">Выберите контакт</h3>
-                    <small id="contactStatus"></small>
-                </div>
+                <h3 id="contactName">Выберите контакт</h3>
             </div>
-            <div class="messages" id="messages">
-                <div style="text-align: center; color: #666; margin-top: 50px;">
-                    👋 Добро пожаловать в CatMe!
-                </div>
-            </div>
+            <div class="messages" id="messages"></div>
             <div class="message-input">
                 <input type="text" id="messageInput" placeholder="Сообщение..." disabled>
                 <button id="sendButton" disabled>➤</button>
@@ -245,9 +204,8 @@
     <div class="login-modal" id="loginModal">
         <div class="login-form">
             <h2>🐱 CatMe</h2>
-            <input type="text" id="loginName" placeholder="Ваше имя" autocomplete="off">
+            <input type="text" id="loginName" placeholder="Имя">
             <input type="password" id="loginPass" placeholder="Пароль">
-            
             <div class="btn-group">
                 <button class="btn-login" onclick="login()">Войти</button>
                 <button class="btn-register" onclick="register()">Регистрация</button>
@@ -256,470 +214,197 @@
     </div>
 
     <script>
-    // ========== ШИФРОВАНИЕ ==========
-    function encrypt(data) {
-        try { return btoa(JSON.stringify(data)); } 
-        catch(e) { return null; }
-    }
-    
-    function decrypt(data) {
-        try { return JSON.parse(atob(data)); } 
-        catch(e) { return null; }
-    }
-
-    // ========== ХЕШ ПАРОЛЯ ==========
-    function hashPassword(pass) {
-        if(!pass) return '';
-        let hash = 0;
-        for(let i = 0; i < pass.length; i++) {
-            hash = ((hash << 5) - hash) + pass.charCodeAt(i);
-            hash |= 0;
-        }
-        return Math.abs(hash).toString(36);
-    }
-
-    // ========== БАЗА ДАННЫХ ==========
-    let db = {
-        users: [],
-        messages: [],
-        contacts: [
-            { id: 'cat1', name: 'Мурзик', avatar: '🐱', isBot: true },
-            { id: 'cat2', name: 'Барсик', avatar: '😸', isBot: true },
-            { id: 'cat3', name: 'Рыжик', avatar: '😻', isBot: true },
-            { id: 'cat4', name: 'Снежок', avatar: '❄️', isBot: true },
-            { id: 'cat5', name: 'Василий', avatar: '😼', isBot: true }
-        ]
-    };
-
-    // Загружаем существующие данные
-    try {
-        const saved = localStorage.getItem('catme_data');
-        if(saved) {
-            const loaded = decrypt(saved);
-            if(loaded) db = loaded;
-        }
-    } catch(e) {}
-
-    // Сохраняем
-    function saveDB() {
-        localStorage.setItem('catme_data', encrypt(db));
-    }
-
-    // ========== ОНЛАЙН СТАТУСЫ ==========
-    let onlineUsers = new Map(); // id -> timestamp последнего действия
-    
-    function updateOnlineStatus() {
-        if(currentUser) {
-            onlineUsers.set(currentUser.id, Date.now());
-        }
+        const API_URL = window.location.origin;
+        const WS_URL = API_URL.replace('http', 'ws');
         
-        // Удаляем неактивных более 30 секунд
-        const now = Date.now();
-        for(let [id, time] of onlineUsers) {
-            if(now - time > 30000) { // 30 секунд
-                onlineUsers.delete(id);
-            }
-        }
-    }
+        let socket = null;
+        let currentUser = null;
+        let currentContact = null;
+        let onlineUsers = new Set();
+        let bots = [
+            { id: 'cat1', name: 'Мурзик', avatar: '🐱' },
+            { id: 'cat2', name: 'Барсик', avatar: '😸' },
+            { id: 'cat3', name: 'Рыжик', avatar: '😻' },
+            { id: 'cat4', name: 'Снежок', avatar: '❄️' },
+            { id: 'cat5', name: 'Василий', avatar: '😼' }
+        ];
 
-    // Обновляем каждые 5 секунд
-    setInterval(updateOnlineStatus, 5000);
-    
-    // При любом действии обновляем статус
-    document.addEventListener('mousemove', () => {
-        if(currentUser) {
-            onlineUsers.set(currentUser.id, Date.now());
+        function connectWebSocket() {
+            socket = new WebSocket(WS_URL);
+            socket.onopen = () => {
+                if (currentUser) {
+                    socket.send(JSON.stringify({
+                        type: 'login',
+                        userId: currentUser.id,
+                        userName: currentUser.name
+                    }));
+                }
+            };
+            socket.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.type === 'online') {
+                    onlineUsers = new Set(data.users);
+                    loadContacts();
+                }
+                if (data.type === 'message') {
+                    if (currentContact && data.from === currentContact.id) {
+                        addMessage(data.text, false);
+                    }
+                }
+            };
+            socket.onclose = () => setTimeout(connectWebSocket, 3000);
         }
-    });
-    
-    document.addEventListener('keypress', () => {
-        if(currentUser) {
-            onlineUsers.set(currentUser.id, Date.now());
-        }
-    });
 
-    function isOnline(userId) {
-        return onlineUsers.has(userId);
-    }
-
-    // ========== АВТОРИЗАЦИЯ ==========
-    let currentUser = null;
-
-    function login() {
-        const name = document.getElementById('loginName').value.trim();
-        const pass = document.getElementById('loginPass').value;
-        
-        if(!name) {
-            alert('Введите имя');
-            return;
-        }
-        
-        const user = db.users.find(u => u.name === name);
-        
-        if(user) {
-            const passHash = hashPassword(pass);
-            if(user.password === passHash) {
-                currentUser = user;
-                onlineUsers.set(currentUser.id, Date.now());
-                loginSuccess();
+        async function login() {
+            const name = document.getElementById('loginName').value.trim();
+            const pass = document.getElementById('loginPass').value;
+            
+            const res = await fetch(API_URL + '/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, password: pass})
+            });
+            
+            if (res.ok) {
+                currentUser = await res.json();
+                document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userAvatar').textContent = currentUser.avatar;
+                document.getElementById('userStatus').textContent = 'Онлайн';
+                connectWebSocket();
+                loadContacts();
             } else {
-                alert('❌ Неверный пароль');
+                alert('Ошибка входа');
             }
-        } else {
-            alert('❌ Пользователь не найден');
         }
-    }
 
-    function register() {
-        const name = document.getElementById('loginName').value.trim();
-        const pass = document.getElementById('loginPass').value;
-        
-        if(!name) {
-            alert('Введите имя');
-            return;
+        async function register() {
+            const name = document.getElementById('loginName').value.trim();
+            const pass = document.getElementById('loginPass').value;
+            
+            const res = await fetch(API_URL + '/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, password: pass})
+            });
+            
+            if (res.ok) {
+                alert('Аккаунт создан! Теперь войдите');
+            } else {
+                alert('Ошибка регистрации');
+            }
         }
-        
-        if(!pass) {
-            alert('Введите пароль');
-            return;
-        }
-        
-        if(pass.length < 3) {
-            alert('Пароль минимум 3 символа');
-            return;
-        }
-        
-        const existing = db.users.find(u => u.name === name);
-        if(existing) {
-            alert('❌ Пользователь уже существует');
-            return;
-        }
-        
-        currentUser = {
-            id: 'user_' + Date.now(),
-            name: name,
-            avatar: name.charAt(0).toUpperCase(),
-            password: hashPassword(pass),
-            created: Date.now()
-        };
-        
-        db.users.push(currentUser);
-        onlineUsers.set(currentUser.id, Date.now());
-        saveDB();
-        loginSuccess();
-        alert('✅ Аккаунт создан!');
-    }
 
-    function loginSuccess() {
-        document.getElementById('loginModal').style.display = 'none';
-        document.getElementById('userName').textContent = currentUser.name;
-        document.getElementById('userAvatar').textContent = currentUser.avatar;
-        document.getElementById('userStatus').textContent = 'Онлайн';
-        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-        loadContacts();
-    }
-
-    // ========== КОНТАКТЫ - ТЕПЕРЬ ВСЕ ВИДНЫ ==========
-    function loadContacts() {
-        if(!currentUser) return;
-        
-        const list = document.getElementById('contactsList');
-        list.innerHTML = '';
-        
-        // 1. СЕКЦИЯ БОТОВ
-        const botHeader = document.createElement('div');
-        botHeader.className = 'section-header';
-        botHeader.textContent = '🤖 БОТЫ';
-        list.appendChild(botHeader);
-        
-        db.contacts.forEach(bot => {
-            const div = createContactElement(bot, true);
-            list.appendChild(div);
-        });
-        
-        // 2. СЕКЦИЯ ПОЛЬЗОВАТЕЛЕЙ ОНЛАЙН
-        const onlineHeader = document.createElement('div');
-        onlineHeader.className = 'section-header';
-        onlineHeader.textContent = '🟢 ОНЛАЙН';
-        list.appendChild(onlineHeader);
-        
-        const onlineUsersList = db.users.filter(u => 
-            u.id !== currentUser.id && isOnline(u.id)
-        );
-        
-        if(onlineUsersList.length === 0) {
-            const empty = document.createElement('div');
-            empty.style.padding = '15px';
-            empty.style.color = '#666';
-            empty.style.textAlign = 'center';
-            empty.style.fontStyle = 'italic';
-            empty.textContent = 'Нет пользователей онлайн';
-            list.appendChild(empty);
-        } else {
-            onlineUsersList.forEach(user => {
-                const div = createContactElement(user, true);
+        async function loadContacts() {
+            const res = await fetch(API_URL + '/api/users');
+            const users = await res.json();
+            
+            const list = document.getElementById('contactsList');
+            list.innerHTML = '';
+            
+            // Боты
+            const botSection = document.createElement('div');
+            botSection.className = 'section';
+            botSection.textContent = '🤖 БОТЫ';
+            list.appendChild(botSection);
+            
+            bots.forEach(bot => {
+                const div = createContactDiv(bot, true);
                 list.appendChild(div);
             });
+            
+            // Онлайн пользователи
+            const online = users.filter(u => u.id !== currentUser?.id && onlineUsers.has(u.id));
+            if (online.length > 0) {
+                const onlineSection = document.createElement('div');
+                onlineSection.className = 'section';
+                onlineSection.textContent = '🟢 ОНЛАЙН';
+                list.appendChild(onlineSection);
+                online.forEach(u => {
+                    const div = createContactDiv(u, true);
+                    list.appendChild(div);
+                });
+            }
+            
+            // Остальные
+            const offline = users.filter(u => u.id !== currentUser?.id && !onlineUsers.has(u.id));
+            if (offline.length > 0) {
+                const offlineSection = document.createElement('div');
+                offlineSection.className = 'section';
+                offlineSection.textContent = '👥 ПОЛЬЗОВАТЕЛИ';
+                list.appendChild(offlineSection);
+                offline.forEach(u => {
+                    const div = createContactDiv(u, false);
+                    list.appendChild(div);
+                });
+            }
         }
-        
-        // 3. СЕКЦИЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ (офлайн)
-        const allHeader = document.createElement('div');
-        allHeader.className = 'section-header';
-        allHeader.textContent = '👥 ВСЕ ПОЛЬЗОВАТЕЛИ';
-        list.appendChild(allHeader);
-        
-        const allUsers = db.users.filter(u => 
-            u.id !== currentUser.id && !isOnline(u.id)
-        );
-        
-        if(allUsers.length === 0) {
-            const empty = document.createElement('div');
-            empty.style.padding = '15px';
-            empty.style.color = '#666';
-            empty.style.textAlign = 'center';
-            empty.style.fontStyle = 'italic';
-            empty.textContent = 'Нет других пользователей';
-            list.appendChild(empty);
-        } else {
-            allUsers.forEach(user => {
-                const div = createContactElement(user, false);
-                list.appendChild(div);
-            });
-        }
-    }
 
-    function createContactElement(contact, isOnline) {
-        const div = document.createElement('div');
-        div.className = 'contact';
-        div.onclick = () => selectContact(contact);
-        
-        // Последнее сообщение
-        const lastMsg = db.messages.filter(m => 
-            (m.from === currentUser?.id && m.to === contact.id) ||
-            (m.from === contact.id && m.to === currentUser?.id)
-        ).pop()?.text || '';
-        
-        div.innerHTML = `
-            <div class="avatar">${contact.avatar || contact.name.charAt(0)}</div>
-            <div style="flex: 1;">
-                <div style="display: flex; align-items: center;">
-                    <b>${contact.name}</b>
-                    ${contact.isBot ? '<span style="margin-left: 5px;">🤖</span>' : ''}
-                </div>
-                <small style="color: #666;">${lastMsg.substring(0, 20)}</small>
-            </div>
-            <div class="status-dot ${isOnline ? 'online' : 'offline'}"></div>
-        `;
-        
-        return div;
-    }
-
-    // ========== ЧАТ ==========
-    let currentContact = null;
-
-    function selectContact(contact) {
-        currentContact = contact;
-        
-        const header = document.getElementById('chatHeader');
-        header.innerHTML = `
-            <div class="avatar">${contact.avatar || contact.name.charAt(0)}</div>
-            <div>
-                <h3>${contact.name}</h3>
-                <small id="contactStatus">${isOnline(contact.id) ? '🟢 Онлайн' : '⚫ Офлайн'}</small>
-            </div>
-        `;
-        
-        document.getElementById('messageInput').disabled = false;
-        document.getElementById('sendButton').disabled = false;
-        loadMessages();
-    }
-
-    function loadMessages() {
-        if(!currentContact || !currentUser) return;
-        
-        const msgs = db.messages.filter(m => 
-            (m.from === currentUser.id && m.to === currentContact.id) ||
-            (m.from === currentContact.id && m.to === currentUser.id)
-        ).sort((a,b) => a.time - b.time);
-        
-        const container = document.getElementById('messages');
-        container.innerHTML = '';
-        
-        if(msgs.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; color: #666; margin-top: 50px;">
-                    👋 Напишите ${currentContact.name} первым!
-                </div>
-            `;
-            return;
-        }
-        
-        msgs.forEach(m => {
+        function createContactDiv(user, isOnline) {
             const div = document.createElement('div');
-            div.className = `message ${m.from === currentUser.id ? 'sent' : 'received'}`;
-            div.innerHTML = `<div class="bubble">${m.text}</div>`;
-            container.appendChild(div);
-        });
-        
-        container.scrollTop = container.scrollHeight;
-    }
+            div.className = 'contact';
+            div.onclick = () => selectContact(user);
+            div.innerHTML = `
+                <div class="avatar">${user.avatar || user.name.charAt(0)}</div>
+                <div style="flex:1;">${user.name}</div>
+                <div class="dot ${isOnline ? 'online' : 'offline'}"></div>
+            `;
+            return div;
+        }
 
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const text = input.value.trim();
-        
-        if(!text || !currentContact || !currentUser) return;
-        
-        const msg = {
-            id: 'msg_' + Date.now(),
-            from: currentUser.id,
-            to: currentContact.id,
-            text: text,
-            time: Date.now()
+        function selectContact(contact) {
+            currentContact = contact;
+            document.getElementById('contactName').textContent = contact.name;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            loadMessages(contact.id);
+        }
+
+        async function loadMessages(contactId) {
+            const res = await fetch(API_URL + `/api/messages/${currentUser.id}`);
+            const allMessages = await res.json();
+            
+            const msgs = allMessages.filter(m => 
+                m.from === currentUser.id && m.to === contactId ||
+                m.from === contactId && m.to === currentUser.id
+            );
+            
+            document.getElementById('messages').innerHTML = '';
+            msgs.forEach(m => {
+                addMessage(m.text, m.from === currentUser.id);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text || !currentContact) return;
+            
+            const msg = {
+                type: 'message',
+                from: currentUser.id,
+                to: currentContact.id,
+                text: text,
+                time: Date.now()
+            };
+            
+            socket.send(JSON.stringify(msg));
+            addMessage(text, true);
+            input.value = '';
+        }
+
+        function addMessage(text, isSent) {
+            const div = document.createElement('div');
+            div.className = `message ${isSent ? 'sent' : 'received'}`;
+            div.innerHTML = `<div class="bubble">${text}</div>`;
+            document.getElementById('messages').appendChild(div);
+        }
+
+        document.getElementById('sendButton').onclick = sendMessage;
+        document.getElementById('messageInput').onkeypress = (e) => {
+            if (e.key === 'Enter') sendMessage();
         };
-        
-        db.messages.push(msg);
-        saveDB();
-        
-        // Отображаем сообщение
-        const div = document.createElement('div');
-        div.className = 'message sent';
-        div.innerHTML = `<div class="bubble">${text}</div>`;
-        document.getElementById('messages').appendChild(div);
-        input.value = '';
-        
-        // Ответ бота
-        if(currentContact.isBot) {
-            setTimeout(() => {
-                const replies = {
-                    'cat1': ['Мяу! 🐱', 'Мур-мур!', 'Кушать хочу', 'Поиграем?'],
-                    'cat2': ['Привет! 😸', 'Как сам?', 'Норм', 'Что делаешь?'],
-                    'cat3': ['Ок', 'Понятно', 'Давай', 'Интересно'],
-                    'cat4': ['Есть хочу! ❄️', 'Мяяяу', 'Спать', 'Холодно'],
-                    'cat5': ['Мур-мур 😼', 'Хорошо', 'Ага', 'Отлично']
-                };
-                const botReplies = replies[currentContact.id] || ['Мяу'];
-                
-                const reply = {
-                    id: 'msg_' + Date.now(),
-                    from: currentContact.id,
-                    to: currentUser.id,
-                    text: botReplies[Math.floor(Math.random() * botReplies.length)],
-                    time: Date.now()
-                };
-                
-                db.messages.push(reply);
-                saveDB();
-                
-                const replyDiv = document.createElement('div');
-                replyDiv.className = 'message received';
-                replyDiv.innerHTML = `<div class="bubble">${reply.text}</div>`;
-                document.getElementById('messages').appendChild(replyDiv);
-            }, 1000);
-        }
-        
-        // Обновляем контакты через 1 секунду
-        setTimeout(loadContacts, 1000);
-    }
-
-    // ========== АДМИНКА ==========
-    const ADMIN_HASH = (() => {
-        let h = 0;
-        const p = 'Oo!123987';
-        for(let i = 0; i < p.length; i++) {
-            h = ((h << 5) - h) + p.charCodeAt(i);
-            h |= 0;
-        }
-        return Math.abs(h).toString(36);
-    })();
-
-    function adminLogin() {
-        const pass = prompt('🔐 Пароль администратора:');
-        if(!pass) return;
-        
-        let hash = 0;
-        for(let i = 0; i < pass.length; i++) {
-            hash = ((hash << 5) - hash) + pass.charCodeAt(i);
-            hash |= 0;
-        }
-        hash = Math.abs(hash).toString(36);
-        
-        if(hash === ADMIN_HASH) {
-            showAdminPanel();
-        } else {
-            alert('❌ Неверный пароль');
-        }
-    }
-
-    function showAdminPanel() {
-        let html = '<h2>👑 Панель администратора</h2>';
-        
-        html += '<h3>👥 Пользователи:</h3>';
-        db.users.forEach(u => {
-            html += `<div style="padding:5px;border-bottom:1px solid #ccc;">
-                <b>${u.name}</b> 
-                ${u.password ? '🔐' : '❌'}
-                ${isOnline(u.id) ? '🟢' : '⚫'}
-                (сообщений: ${db.messages.filter(m => m.from === u.id || m.to === u.id).length})
-            </div>`;
-        });
-        
-        html += '<h3>💬 Статистика:</h3>';
-        html += `<p>Всего сообщений: ${db.messages.length}</p>`;
-        html += `<p>Всего пользователей: ${db.users.length}</p>`;
-        html += `<p>Сейчас онлайн: ${onlineUsers.size}</p>`;
-        
-        html += '<br><button onclick="exportData()">📥 Экспорт</button> ';
-        html += '<button onclick="location.reload()">🔄 Назад</button>';
-        
-        document.getElementById('messages').innerHTML = html;
-        document.querySelector('.chat-header').style.display = 'none';
-        document.querySelector('.message-input').style.display = 'none';
-    }
-
-    function exportData() {
-        const dataStr = JSON.stringify(db, null, 2);
-        const blob = new Blob([dataStr], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `catme_backup_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-    }
-
-    // Секретный вход
-    document.addEventListener('keydown', (e) => {
-        if(e.altKey && e.shiftKey && e.key === 'A') {
-            adminLogin();
-        }
-    });
-
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
-    document.getElementById('sendButton').onclick = sendMessage;
-    document.getElementById('messageInput').onkeypress = (e) => {
-        if(e.key === 'Enter') sendMessage();
-    };
-
-    // Автоматическое обновление контактов
-    setInterval(() => {
-        if(currentUser) {
-            loadContacts();
-        }
-    }, 3000);
-
-    // Восстанавливаем сессию
-    const savedUser = sessionStorage.getItem('currentUser');
-    if(savedUser) {
-        try {
-            currentUser = JSON.parse(savedUser);
-            onlineUsers.set(currentUser.id, Date.now());
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('userAvatar').textContent = currentUser.avatar;
-            document.getElementById('userStatus').textContent = 'Онлайн';
-            loadContacts();
-        } catch(e) {}
-    }
     </script>
 </body>
 </html>
