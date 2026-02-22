@@ -23,7 +23,7 @@ function loadDatabase() {
     } catch (e) {
         console.log('Ошибка загрузки:', e);
     }
-    return { users: [], messages: [], groups: [], channels: [], friends: [] };
+    return { users: [], messages: [], groups: [], channels: [] };
 }
 
 function saveDatabase() {
@@ -37,8 +37,6 @@ function saveDatabase() {
 
 let db = loadDatabase();
 let onlineUsers = new Map();
-
-function saveDB() { saveDatabase(); }
 
 // ========== ХЕШ ПАРОЛЯ ==========
 function hashPassword(pass) {
@@ -64,7 +62,6 @@ app.post('/api/register', (req, res) => {
         avatar: avatar || name.charAt(0).toUpperCase(),
         password: hashPassword(password),
         bio: bio || '',
-        friends: [],
         created: Date.now()
     };
 
@@ -78,7 +75,7 @@ app.post('/api/login', (req, res) => {
     const user = db.users.find(u => u.name.toLowerCase() === name.toLowerCase());
     if (!user) return res.status(401).json({ error: 'Не найден' });
     if (user.password !== hashPassword(password)) return res.status(401).json({ error: 'Неверный пароль' });
-    res.json({ id: user.id, name: user.name, avatar: user.avatar, bio: user.bio, friends: user.friends });
+    res.json({ id: user.id, name: user.name, avatar: user.avatar, bio: user.bio });
 });
 
 app.get('/api/users', (req, res) => {
@@ -86,29 +83,14 @@ app.get('/api/users', (req, res) => {
     res.json(usersPublic);
 });
 
-app.post('/api/add-friend', (req, res) => {
-    const { userId, friendId } = req.body;
-    const user = db.users.find(u => u.id === userId);
-    if (user && !user.friends.includes(friendId)) {
-        user.friends.push(friendId);
-        saveDB();
-        res.json({ success: true });
-    } else {
-        res.status(400).json({ error: 'Уже в друзьях' });
-    }
+// ========== СООБЩЕНИЯ ==========
+app.get('/api/messages/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
+    const chatMessages = db.messages.filter(m => m.chatId === chatId);
+    res.json(chatMessages);
 });
 
-app.post('/api/remove-friend', (req, res) => {
-    const { userId, friendId } = req.body;
-    const user = db.users.find(u => u.id === userId);
-    if (user) {
-        user.friends = user.friends.filter(id => id !== friendId);
-        saveDB();
-        res.json({ success: true });
-    }
-});
-
-// ========== ГРУППЫ И КАНАЛЫ ==========
+// ========== ГРУППЫ ==========
 app.post('/api/create-group', (req, res) => {
     const { name, creatorId, avatar } = req.body;
     const group = {
@@ -117,7 +99,6 @@ app.post('/api/create-group', (req, res) => {
         avatar: avatar || '👥',
         creator: creatorId,
         members: [creatorId],
-        messages: [],
         created: Date.now()
     };
     db.groups.push(group);
@@ -125,20 +106,8 @@ app.post('/api/create-group', (req, res) => {
     res.json(group);
 });
 
-app.post('/api/create-channel', (req, res) => {
-    const { name, creatorId, avatar } = req.body;
-    const channel = {
-        id: 'channel_' + Date.now(),
-        name,
-        avatar: avatar || '📢',
-        creator: creatorId,
-        subscribers: [creatorId],
-        messages: [],
-        created: Date.now()
-    };
-    db.channels.push(channel);
-    saveDB();
-    res.json(channel);
+app.get('/api/groups', (req, res) => {
+    res.json(db.groups);
 });
 
 app.post('/api/join-group', (req, res) => {
@@ -151,6 +120,26 @@ app.post('/api/join-group', (req, res) => {
     }
 });
 
+// ========== КАНАЛЫ ==========
+app.post('/api/create-channel', (req, res) => {
+    const { name, creatorId, avatar } = req.body;
+    const channel = {
+        id: 'channel_' + Date.now(),
+        name,
+        avatar: avatar || '📢',
+        creator: creatorId,
+        subscribers: [creatorId],
+        created: Date.now()
+    };
+    db.channels.push(channel);
+    saveDB();
+    res.json(channel);
+});
+
+app.get('/api/channels', (req, res) => {
+    res.json(db.channels);
+});
+
 app.post('/api/subscribe-channel', (req, res) => {
     const { channelId, userId } = req.body;
     const channel = db.channels.find(c => c.id === channelId);
@@ -161,72 +150,74 @@ app.post('/api/subscribe-channel', (req, res) => {
     }
 });
 
-app.get('/api/groups', (req, res) => {
-    res.json(db.groups);
-});
-
-app.get('/api/channels', (req, res) => {
-    res.json(db.channels);
-});
-
-// ========== СООБЩЕНИЯ (ТЕПЕРЬ С МЕДИА) ==========
-app.get('/api/messages/:chatId', (req, res) => {
-    const chatId = req.params.chatId;
-    const chatMessages = db.messages.filter(m => m.chatId === chatId);
-    res.json(chatMessages);
-});
-
-app.post('/api/upload', (req, res) => {
-    const { file, type, chatId, senderId } = req.body;
-    const message = {
-        id: 'msg_' + Date.now(),
-        chatId,
-        senderId,
-        type: type || 'text',
-        content: file || req.body.text,
-        time: Date.now()
-    };
-    db.messages.push(message);
-    saveDB();
-
-    const recipients = [...(db.users.map(u => u.id)), ...(db.groups.map(g => g.members).flat())];
-    recipients.forEach(uid => {
-        const ws = onlineUsers.get(uid);
-        if (ws) ws.send(JSON.stringify({ type: 'message', message }));
-    });
-
-    res.json({ success: true, message });
-});
-
 // ========== ПОИСК ==========
 app.get('/api/search', (req, res) => {
     const query = req.query.q?.toLowerCase() || '';
     const users = db.users.filter(u => u.name.toLowerCase().includes(query)).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
     const groups = db.groups.filter(g => g.name.toLowerCase().includes(query)).map(g => ({ id: g.id, name: g.name, avatar: g.avatar }));
     const channels = db.channels.filter(c => c.name.toLowerCase().includes(query)).map(c => ({ id: c.id, name: c.name, avatar: c.avatar }));
-    const messages = db.messages.filter(m => m.content?.toLowerCase?.().includes(query)).slice(-20);
-    res.json({ users, groups, channels, messages });
+    res.json({ users, groups, channels });
 });
 
-// ========== WEB SOCKET (ВИДЕОЗВОНКИ) ==========
+// ========== WEB SOCKET (ЕДИНСТВЕННЫЙ КАНАЛ ДЛЯ СООБЩЕНИЙ) ==========
 wss.on('connection', (ws) => {
     ws.on('message', (data) => {
         const msg = JSON.parse(data);
+        
         if (msg.type === 'login') {
             ws.userId = msg.userId;
             ws.userName = msg.userName;
             onlineUsers.set(msg.userId, ws);
             broadcastOnline();
         }
-        if (msg.type === 'message') {
-            db.messages.push(msg);
+        
+        else if (msg.type === 'message') {
+            // Сохраняем в БД
+            const message = {
+                id: 'msg_' + Date.now(),
+                chatId: msg.chatId,
+                senderId: msg.senderId,
+                senderName: msg.senderName,
+                type: msg.type,
+                content: msg.content,
+                time: Date.now()
+            };
+            db.messages.push(message);
             saveDB();
-            const recipient = onlineUsers.get(msg.to);
-            if (recipient) recipient.send(JSON.stringify(msg));
+
+            // Отправляем всем участникам чата
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    // Для личного чата
+                    if (msg.chatId.startsWith('user_')) {
+                        if (client.userId === msg.chatId || client.userId === msg.senderId) {
+                            client.send(JSON.stringify({ type: 'message', message }));
+                        }
+                    }
+                    // Для группы
+                    else if (msg.chatId.startsWith('group_')) {
+                        const group = db.groups.find(g => g.id === msg.chatId);
+                        if (group && group.members.includes(client.userId)) {
+                            client.send(JSON.stringify({ type: 'message', message }));
+                        }
+                    }
+                    // Для канала
+                    else if (msg.chatId.startsWith('channel_')) {
+                        const channel = db.channels.find(c => c.id === msg.chatId);
+                        if (channel && channel.subscribers.includes(client.userId)) {
+                            client.send(JSON.stringify({ type: 'message', message }));
+                        }
+                    }
+                }
+            });
         }
-        if (msg.type === 'call-offer' || msg.type === 'call-answer' || msg.type === 'ice-candidate') {
+        
+        else if (msg.type === 'call-offer' || msg.type === 'call-answer' || msg.type === 'ice-candidate') {
+            // Пересылаем сигнал конкретному пользователю
             const target = onlineUsers.get(msg.to);
-            if (target) target.send(JSON.stringify(msg));
+            if (target) {
+                target.send(JSON.stringify(msg));
+            }
         }
     });
 
@@ -240,8 +231,15 @@ wss.on('connection', (ws) => {
 
 function broadcastOnline() {
     const online = Array.from(onlineUsers.keys());
-    onlineUsers.forEach(ws => ws.send(JSON.stringify({ type: 'online', users: online })));
+    const msg = JSON.stringify({ type: 'online', users: online });
+    onlineUsers.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(msg);
+        }
+    });
 }
+
+function saveDB() { saveDatabase(); }
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
