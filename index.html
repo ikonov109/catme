@@ -26,6 +26,8 @@
             width: 300px;
             background: #f8f9fa;
             border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
         }
         .header {
             padding: 20px;
@@ -39,6 +41,7 @@
             align-items: center;
             gap: 10px;
             border-bottom: 1px solid #dee2e6;
+            background: white;
         }
         .avatar {
             width: 40px;
@@ -52,18 +55,28 @@
             font-weight: bold;
         }
         .contacts {
-            height: calc(100% - 180px);
+            flex: 1;
             overflow-y: auto;
+            padding: 10px 0;
         }
         .contact {
-            padding: 15px;
+            padding: 12px 15px;
             display: flex;
             align-items: center;
             gap: 10px;
             cursor: pointer;
             border-bottom: 1px solid #dee2e6;
+            transition: background 0.2s;
         }
         .contact:hover { background: #e9ecef; }
+        .contact .online-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
+        .online { background: #10b981; }
+        .offline { background: #9ca3af; }
         .chat-area {
             flex: 1;
             display: flex;
@@ -72,6 +85,7 @@
         .chat-header {
             padding: 20px;
             border-bottom: 1px solid #dee2e6;
+            background: white;
         }
         .messages {
             flex: 1;
@@ -103,6 +117,7 @@
             display: flex;
             gap: 10px;
             border-top: 1px solid #dee2e6;
+            background: white;
         }
         .message-input input {
             flex: 1;
@@ -170,18 +185,17 @@
         }
         .btn-login:hover { background: #5b21b6; }
         .btn-register:hover { background: #059669; }
-        .separator {
-            margin: 15px 0;
-            color: #666;
-            font-size: 14px;
-        }
-        .bot-notice {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #666;
+        .online-users {
+            margin-top: 10px;
+            padding: 10px;
             background: #f3f4f6;
-            padding: 8px;
-            border-radius: 5px;
+            border-radius: 8px;
+        }
+        .section-title {
+            padding: 10px 15px;
+            font-weight: bold;
+            color: #6d28d9;
+            background: #e9ecef;
         }
     </style>
 </head>
@@ -227,11 +241,8 @@
                 <button class="btn-register" onclick="register()">Регистрация</button>
             </div>
             
-            <div class="separator">или</div>
-            
-            <div class="bot-notice">
-                🤖 Боты доступны всегда<br>
-                <small>Мурзик, Барсик, Рыжик, Снежок, Василий</small>
+            <div class="online-users">
+                <b>🤖 Боты:</b> Мурзик, Барсик, Рыжик, Снежок, Василий
             </div>
         </div>
     </div>
@@ -290,6 +301,7 @@
 
     // ========== АВТОРИЗАЦИЯ ==========
     let currentUser = null;
+    let onlineUsers = new Set(); // Для отслеживания онлайн
 
     function login() {
         const name = document.getElementById('loginName').value.trim();
@@ -300,20 +312,19 @@
             return;
         }
         
-        // Ищем пользователя
         const user = db.users.find(u => u.name === name);
         
         if(user) {
-            // Проверяем пароль
             const passHash = hashPassword(pass);
             if(user.password === passHash) {
                 currentUser = user;
+                onlineUsers.add(currentUser.id);
                 loginSuccess();
             } else {
                 alert('❌ Неверный пароль');
             }
         } else {
-            alert('❌ Пользователь не найден. Нажмите "Регистрация" для создания аккаунта');
+            alert('❌ Пользователь не найден. Нажмите "Регистрация"');
         }
     }
 
@@ -332,18 +343,16 @@
         }
         
         if(pass.length < 3) {
-            alert('Пароль должен быть минимум 3 символа');
+            alert('Пароль минимум 3 символа');
             return;
         }
         
-        // Проверяем, нет ли уже такого пользователя
         const existing = db.users.find(u => u.name === name);
         if(existing) {
-            alert('❌ Пользователь с таким именем уже существует');
+            alert('❌ Пользователь уже существует');
             return;
         }
         
-        // Создаем нового пользователя
         currentUser = {
             id: 'user_' + Date.now(),
             name: name,
@@ -353,9 +362,10 @@
         };
         
         db.users.push(currentUser);
+        onlineUsers.add(currentUser.id);
         saveDB();
         loginSuccess();
-        alert('✅ Аккаунт успешно создан!');
+        alert('✅ Аккаунт создан!');
     }
 
     function loginSuccess() {
@@ -365,59 +375,110 @@
         document.getElementById('userStatus').textContent = 'Онлайн';
         sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         loadContacts();
+        
+        // Эмулируем онлайн статус
+        setInterval(() => {
+            loadContacts(); // Обновляем контакты каждые 5 секунд
+        }, 5000);
     }
 
-    // ========== КОНТАКТЫ ==========
+    // ========== КОНТАКТЫ (ТЕПЕРЬ ВИДНЫ ВСЕ) ==========
     function loadContacts() {
         if(!currentUser) return;
         
         const list = document.getElementById('contactsList');
         list.innerHTML = '';
         
-        // Добавляем ботов (всегда доступны)
+        // Секция ботов
+        const botSection = document.createElement('div');
+        botSection.className = 'section-title';
+        botSection.textContent = '🤖 Боты';
+        list.appendChild(botSection);
+        
+        // Добавляем ботов
         db.contacts.forEach(bot => {
-            const div = document.createElement('div');
-            div.className = 'contact';
-            div.onclick = () => selectContact(bot);
-            
-            const lastMsg = db.messages.filter(m => 
-                (m.from === currentUser.id && m.to === bot.id) ||
-                (m.from === bot.id && m.to === currentUser.id)
-            ).pop()?.text || '';
-            
-            div.innerHTML = `
-                <div class="avatar">${bot.avatar}</div>
-                <div>
-                    <b>${bot.name}</b><br>
-                    <small>${lastMsg.substring(0, 20)}</small>
-                </div>
-            `;
+            const div = createContactElement(bot, false);
             list.appendChild(div);
         });
         
-        // Добавляем реальных пользователей (с кем есть переписка)
-        db.users.forEach(u => {
-            if(u.id !== currentUser.id) {
-                const msgs = db.messages.filter(m => 
-                    (m.from === currentUser.id && m.to === u.id) ||
-                    (m.from === u.id && m.to === currentUser.id)
-                );
-                
-                if(msgs.length > 0) {
-                    const div = document.createElement('div');
-                    div.className = 'contact';
-                    div.onclick = () => selectContact(u);
-                    div.innerHTML = `
-                        <div class="avatar">${u.avatar}</div>
-                        <div>
-                            <b>${u.name}</b><br>
-                            <small>${msgs[msgs.length-1].text.substring(0, 20)}</small>
-                        </div>
-                    `;
-                    list.appendChild(div);
-                }
+        // Секция пользователей
+        const userSection = document.createElement('div');
+        userSection.className = 'section-title';
+        userSection.textContent = '👥 Пользователи онлайн';
+        list.appendChild(userSection);
+        
+        // Добавляем ВСЕХ пользователей (кроме себя)
+        const otherUsers = db.users.filter(u => u.id !== currentUser.id);
+        
+        if(otherUsers.length === 0) {
+            const empty = document.createElement('div');
+            empty.style.padding = '15px';
+            empty.style.color = '#666';
+            empty.style.textAlign = 'center';
+            empty.textContent = 'Нет других пользователей';
+            list.appendChild(empty);
+        } else {
+            otherUsers.forEach(user => {
+                const div = createContactElement(user, true);
+                list.appendChild(div);
+            });
+        }
+        
+        // Секция офлайн пользователей (с кем была переписка)
+        const offlineSection = document.createElement('div');
+        offlineSection.className = 'section-title';
+        offlineSection.textContent = '📝 История';
+        list.appendChild(offlineSection);
+        
+        let hasOffline = false;
+        otherUsers.forEach(user => {
+            const msgs = db.messages.filter(m => 
+                (m.from === currentUser.id && m.to === user.id) ||
+                (m.from === user.id && m.to === currentUser.id)
+            );
+            
+            if(msgs.length > 0 && !isUserOnline(user.id)) {
+                hasOffline = true;
+                const div = createContactElement(user, false);
+                list.appendChild(div);
             }
         });
+        
+        if(!hasOffline) {
+            const empty = document.createElement('div');
+            empty.style.padding = '15px';
+            empty.style.color = '#666';
+            empty.style.textAlign = 'center';
+            empty.textContent = 'Нет истории переписки';
+            list.appendChild(empty);
+        }
+    }
+
+    function createContactElement(contact, isOnline) {
+        const div = document.createElement('div');
+        div.className = 'contact';
+        div.onclick = () => selectContact(contact);
+        
+        const lastMsg = db.messages.filter(m => 
+            (m.from === currentUser?.id && m.to === contact.id) ||
+            (m.from === contact.id && m.to === currentUser?.id)
+        ).pop()?.text || '';
+        
+        div.innerHTML = `
+            <div class="avatar">${contact.avatar || contact.name.charAt(0)}</div>
+            <div style="flex: 1;">
+                <b>${contact.name}</b><br>
+                <small>${lastMsg.substring(0, 20)}</small>
+            </div>
+            <div class="online-dot ${isOnline ? 'online' : 'offline'}"></div>
+        `;
+        
+        return div;
+    }
+
+    function isUserOnline(userId) {
+        // Простая эмуляция онлайн статуса
+        return Math.random() > 0.5; // Для демо
     }
 
     // ========== ЧАТ ==========
@@ -441,6 +502,15 @@
         
         const container = document.getElementById('messages');
         container.innerHTML = '';
+        
+        if(msgs.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: #666; margin-top: 50px;">
+                    👋 Начните общение с ${currentContact.name}
+                </div>
+            `;
+            return;
+        }
         
         msgs.forEach(m => {
             const div = document.createElement('div');
@@ -469,7 +539,6 @@
         db.messages.push(msg);
         saveDB();
         
-        // Отображаем сообщение
         const div = document.createElement('div');
         div.className = 'message sent';
         div.innerHTML = `<div class="bubble">${text}</div>`;
@@ -522,7 +591,7 @@
     })();
 
     function adminLogin() {
-        const pass = prompt('🔐 Введите пароль администратора:');
+        const pass = prompt('🔐 Пароль администратора:');
         if(!pass) return;
         
         let hash = 0;
@@ -556,8 +625,8 @@
         html += `<p>Всего пользователей: ${db.users.length}</p>`;
         html += `<p>Ботов: ${db.contacts.length}</p>`;
         
-        html += '<br><button onclick="exportData()">📥 Экспорт данных</button> ';
-        html += '<button onclick="location.reload()">🔄 Назад в чат</button>';
+        html += '<br><button onclick="exportData()">📥 Экспорт</button> ';
+        html += '<button onclick="location.reload()">🔄 Назад</button>';
         
         document.getElementById('messages').innerHTML = html;
         document.querySelector('.chat-header').style.display = 'none';
@@ -592,6 +661,7 @@
     if(savedUser) {
         try {
             currentUser = JSON.parse(savedUser);
+            onlineUsers.add(currentUser.id);
             document.getElementById('loginModal').style.display = 'none';
             document.getElementById('userName').textContent = currentUser.name;
             document.getElementById('userAvatar').textContent = currentUser.avatar;
