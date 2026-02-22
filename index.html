@@ -13,7 +13,7 @@
             justify-content: center;
             align-items: center;
         }
-        .chat-container {
+        .container {
             width: 1000px;
             height: 700px;
             background: white;
@@ -49,6 +49,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-weight: bold;
         }
         .contacts {
             height: calc(100% - 180px);
@@ -82,9 +83,7 @@
             margin-bottom: 15px;
             max-width: 70%;
         }
-        .message.sent {
-            margin-left: auto;
-        }
+        .message.sent { margin-left: auto; }
         .message.sent .bubble {
             background: #6d28d9;
             color: white;
@@ -132,8 +131,12 @@
             background: white;
             padding: 40px;
             border-radius: 20px;
-            width: 350px;
+            width: 400px;
             text-align: center;
+        }
+        .login-form h2 {
+            margin-bottom: 20px;
+            color: #6d28d9;
         }
         .login-form input {
             width: 100%;
@@ -141,28 +144,57 @@
             margin: 10px 0;
             border: 2px solid #dee2e6;
             border-radius: 8px;
+            font-size: 16px;
+        }
+        .login-form .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
         }
         .login-form button {
-            width: 100%;
+            flex: 1;
             padding: 12px;
-            background: #6d28d9;
-            color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .btn-login {
+            background: #6d28d9;
+            color: white;
+        }
+        .btn-register {
+            background: #10b981;
+            color: white;
+        }
+        .btn-login:hover { background: #5b21b6; }
+        .btn-register:hover { background: #059669; }
+        .separator {
+            margin: 15px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .bot-notice {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+            background: #f3f4f6;
+            padding: 8px;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
+    <div class="container">
         <div class="sidebar">
             <div class="header">
                 <h1>🐱 CatMe</h1>
             </div>
             <div class="user-info">
-                <div class="avatar" id="userAvatar"></div>
+                <div class="avatar" id="userAvatar">?</div>
                 <div>
-                    <div id="userName"></div>
+                    <div id="userName">Гость</div>
                     <small id="userStatus"></small>
                 </div>
             </div>
@@ -172,7 +204,11 @@
             <div class="chat-header" id="chatHeader">
                 <h3>Выберите контакт</h3>
             </div>
-            <div class="messages" id="messages"></div>
+            <div class="messages" id="messages">
+                <div style="text-align: center; color: #666; margin-top: 50px;">
+                    👋 Добро пожаловать в CatMe!
+                </div>
+            </div>
             <div class="message-input">
                 <input type="text" id="messageInput" placeholder="Сообщение..." disabled>
                 <button id="sendButton" disabled>➤</button>
@@ -183,15 +219,388 @@
     <div class="login-modal" id="loginModal">
         <div class="login-form">
             <h2>🐱 CatMe</h2>
-            <input type="text" id="loginName" placeholder="Имя">
-            <input type="password" id="loginPass" placeholder="Пароль (оставьте пустым если новый)">
-            <button onclick="login()">Войти</button>
-            <p style="margin-top: 10px; font-size: 12px;">Новые аккаунты создаются автоматически</p>
+            <input type="text" id="loginName" placeholder="Ваше имя" autocomplete="off">
+            <input type="password" id="loginPass" placeholder="Пароль">
+            
+            <div class="btn-group">
+                <button class="btn-login" onclick="login()">Войти</button>
+                <button class="btn-register" onclick="register()">Регистрация</button>
+            </div>
+            
+            <div class="separator">или</div>
+            
+            <div class="bot-notice">
+                🤖 Боты доступны всегда<br>
+                <small>Мурзик, Барсик, Рыжик, Снежок, Василий</small>
+            </div>
         </div>
     </div>
 
-    <script src="data.js"></script>
-    <script src="auth.js"></script>
-    <script src="chat.js"></script>
+    <script>
+    // ========== ШИФРОВАНИЕ ==========
+    function encrypt(data) {
+        try { return btoa(JSON.stringify(data)); } 
+        catch(e) { return null; }
+    }
+    
+    function decrypt(data) {
+        try { return JSON.parse(atob(data)); } 
+        catch(e) { return null; }
+    }
+
+    // ========== ХЕШ ПАРОЛЯ ==========
+    function hashPassword(pass) {
+        if(!pass) return '';
+        let hash = 0;
+        for(let i = 0; i < pass.length; i++) {
+            hash = ((hash << 5) - hash) + pass.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash).toString(36);
+    }
+
+    // ========== БАЗА ДАННЫХ ==========
+    let db = {
+        users: [],
+        messages: [],
+        contacts: [
+            { id: 'cat1', name: 'Мурзик', avatar: '🐱', isBot: true },
+            { id: 'cat2', name: 'Барсик', avatar: '😸', isBot: true },
+            { id: 'cat3', name: 'Рыжик', avatar: '😻', isBot: true },
+            { id: 'cat4', name: 'Снежок', avatar: '❄️', isBot: true },
+            { id: 'cat5', name: 'Василий', avatar: '😼', isBot: true }
+        ]
+    };
+
+    // Загружаем существующие данные
+    try {
+        const saved = localStorage.getItem('catme_data');
+        if(saved) {
+            const loaded = decrypt(saved);
+            if(loaded) db = loaded;
+        }
+    } catch(e) {
+        console.log('Новая база данных');
+    }
+
+    // Сохраняем
+    function saveDB() {
+        localStorage.setItem('catme_data', encrypt(db));
+    }
+
+    // ========== АВТОРИЗАЦИЯ ==========
+    let currentUser = null;
+
+    function login() {
+        const name = document.getElementById('loginName').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        
+        if(!name) {
+            alert('Введите имя');
+            return;
+        }
+        
+        // Ищем пользователя
+        const user = db.users.find(u => u.name === name);
+        
+        if(user) {
+            // Проверяем пароль
+            const passHash = hashPassword(pass);
+            if(user.password === passHash) {
+                currentUser = user;
+                loginSuccess();
+            } else {
+                alert('❌ Неверный пароль');
+            }
+        } else {
+            alert('❌ Пользователь не найден. Нажмите "Регистрация" для создания аккаунта');
+        }
+    }
+
+    function register() {
+        const name = document.getElementById('loginName').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        
+        if(!name) {
+            alert('Введите имя');
+            return;
+        }
+        
+        if(!pass) {
+            alert('Введите пароль');
+            return;
+        }
+        
+        if(pass.length < 3) {
+            alert('Пароль должен быть минимум 3 символа');
+            return;
+        }
+        
+        // Проверяем, нет ли уже такого пользователя
+        const existing = db.users.find(u => u.name === name);
+        if(existing) {
+            alert('❌ Пользователь с таким именем уже существует');
+            return;
+        }
+        
+        // Создаем нового пользователя
+        currentUser = {
+            id: 'user_' + Date.now(),
+            name: name,
+            avatar: name.charAt(0).toUpperCase(),
+            password: hashPassword(pass),
+            created: Date.now()
+        };
+        
+        db.users.push(currentUser);
+        saveDB();
+        loginSuccess();
+        alert('✅ Аккаунт успешно создан!');
+    }
+
+    function loginSuccess() {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userAvatar').textContent = currentUser.avatar;
+        document.getElementById('userStatus').textContent = 'Онлайн';
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        loadContacts();
+    }
+
+    // ========== КОНТАКТЫ ==========
+    function loadContacts() {
+        if(!currentUser) return;
+        
+        const list = document.getElementById('contactsList');
+        list.innerHTML = '';
+        
+        // Добавляем ботов (всегда доступны)
+        db.contacts.forEach(bot => {
+            const div = document.createElement('div');
+            div.className = 'contact';
+            div.onclick = () => selectContact(bot);
+            
+            const lastMsg = db.messages.filter(m => 
+                (m.from === currentUser.id && m.to === bot.id) ||
+                (m.from === bot.id && m.to === currentUser.id)
+            ).pop()?.text || '';
+            
+            div.innerHTML = `
+                <div class="avatar">${bot.avatar}</div>
+                <div>
+                    <b>${bot.name}</b><br>
+                    <small>${lastMsg.substring(0, 20)}</small>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+        
+        // Добавляем реальных пользователей (с кем есть переписка)
+        db.users.forEach(u => {
+            if(u.id !== currentUser.id) {
+                const msgs = db.messages.filter(m => 
+                    (m.from === currentUser.id && m.to === u.id) ||
+                    (m.from === u.id && m.to === currentUser.id)
+                );
+                
+                if(msgs.length > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'contact';
+                    div.onclick = () => selectContact(u);
+                    div.innerHTML = `
+                        <div class="avatar">${u.avatar}</div>
+                        <div>
+                            <b>${u.name}</b><br>
+                            <small>${msgs[msgs.length-1].text.substring(0, 20)}</small>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                }
+            }
+        });
+    }
+
+    // ========== ЧАТ ==========
+    let currentContact = null;
+
+    function selectContact(contact) {
+        currentContact = contact;
+        document.getElementById('chatHeader').innerHTML = `<h3>${contact.name}</h3>`;
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('sendButton').disabled = false;
+        loadMessages();
+    }
+
+    function loadMessages() {
+        if(!currentContact || !currentUser) return;
+        
+        const msgs = db.messages.filter(m => 
+            (m.from === currentUser.id && m.to === currentContact.id) ||
+            (m.from === currentContact.id && m.to === currentUser.id)
+        ).sort((a,b) => a.time - b.time);
+        
+        const container = document.getElementById('messages');
+        container.innerHTML = '';
+        
+        msgs.forEach(m => {
+            const div = document.createElement('div');
+            div.className = `message ${m.from === currentUser.id ? 'sent' : 'received'}`;
+            div.innerHTML = `<div class="bubble">${m.text}</div>`;
+            container.appendChild(div);
+        });
+        
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        
+        if(!text || !currentContact || !currentUser) return;
+        
+        const msg = {
+            id: 'msg_' + Date.now(),
+            from: currentUser.id,
+            to: currentContact.id,
+            text: text,
+            time: Date.now()
+        };
+        
+        db.messages.push(msg);
+        saveDB();
+        
+        // Отображаем сообщение
+        const div = document.createElement('div');
+        div.className = 'message sent';
+        div.innerHTML = `<div class="bubble">${text}</div>`;
+        document.getElementById('messages').appendChild(div);
+        input.value = '';
+        
+        // Ответ бота
+        if(currentContact.isBot) {
+            setTimeout(() => {
+                const replies = {
+                    'cat1': ['Мяу! 🐱', 'Мур-мур!', 'Кушать хочу', 'Поиграем?'],
+                    'cat2': ['Привет! 😸', 'Как сам?', 'Норм', 'Что делаешь?'],
+                    'cat3': ['Ок', 'Понятно', 'Давай', 'Интересно'],
+                    'cat4': ['Есть хочу! ❄️', 'Мяяяу', 'Спать', 'Холодно'],
+                    'cat5': ['Мур-мур 😼', 'Хорошо', 'Ага', 'Отлично']
+                };
+                const botReplies = replies[currentContact.id] || ['Мяу'];
+                
+                const reply = {
+                    id: 'msg_' + Date.now(),
+                    from: currentContact.id,
+                    to: currentUser.id,
+                    text: botReplies[Math.floor(Math.random() * botReplies.length)],
+                    time: Date.now()
+                };
+                
+                db.messages.push(reply);
+                saveDB();
+                
+                const replyDiv = document.createElement('div');
+                replyDiv.className = 'message received';
+                replyDiv.innerHTML = `<div class="bubble">${reply.text}</div>`;
+                document.getElementById('messages').appendChild(replyDiv);
+                loadContacts();
+            }, 1000);
+        }
+        
+        loadContacts();
+    }
+
+    // ========== АДМИНКА ==========
+    const ADMIN_HASH = (() => {
+        let h = 0;
+        const p = 'Oo!123987';
+        for(let i = 0; i < p.length; i++) {
+            h = ((h << 5) - h) + p.charCodeAt(i);
+            h |= 0;
+        }
+        return Math.abs(h).toString(36);
+    })();
+
+    function adminLogin() {
+        const pass = prompt('🔐 Введите пароль администратора:');
+        if(!pass) return;
+        
+        let hash = 0;
+        for(let i = 0; i < pass.length; i++) {
+            hash = ((hash << 5) - hash) + pass.charCodeAt(i);
+            hash |= 0;
+        }
+        hash = Math.abs(hash).toString(36);
+        
+        if(hash === ADMIN_HASH) {
+            showAdminPanel();
+        } else {
+            alert('❌ Неверный пароль');
+        }
+    }
+
+    function showAdminPanel() {
+        let html = '<h2>👑 Панель администратора</h2>';
+        
+        html += '<h3>👥 Пользователи:</h3>';
+        db.users.forEach(u => {
+            html += `<div style="padding:5px;border-bottom:1px solid #ccc;">
+                <b>${u.name}</b> 
+                ${u.password ? '🔐' : '❌'}
+                (сообщений: ${db.messages.filter(m => m.from === u.id || m.to === u.id).length})
+            </div>`;
+        });
+        
+        html += '<h3>💬 Статистика:</h3>';
+        html += `<p>Всего сообщений: ${db.messages.length}</p>`;
+        html += `<p>Всего пользователей: ${db.users.length}</p>`;
+        html += `<p>Ботов: ${db.contacts.length}</p>`;
+        
+        html += '<br><button onclick="exportData()">📥 Экспорт данных</button> ';
+        html += '<button onclick="location.reload()">🔄 Назад в чат</button>';
+        
+        document.getElementById('messages').innerHTML = html;
+        document.querySelector('.chat-header').style.display = 'none';
+        document.querySelector('.message-input').style.display = 'none';
+    }
+
+    function exportData() {
+        const dataStr = JSON.stringify(db, null, 2);
+        const blob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `catme_backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+    }
+
+    // Секретный вход (Alt+Shift+A)
+    document.addEventListener('keydown', (e) => {
+        if(e.altKey && e.shiftKey && e.key === 'A') {
+            adminLogin();
+        }
+    });
+
+    // ========== ИНИЦИАЛИЗАЦИЯ ==========
+    document.getElementById('sendButton').onclick = sendMessage;
+    document.getElementById('messageInput').onkeypress = (e) => {
+        if(e.key === 'Enter') sendMessage();
+    };
+
+    // Восстанавливаем сессию
+    const savedUser = sessionStorage.getItem('currentUser');
+    if(savedUser) {
+        try {
+            currentUser = JSON.parse(savedUser);
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userAvatar').textContent = currentUser.avatar;
+            document.getElementById('userStatus').textContent = 'Онлайн';
+            loadContacts();
+        } catch(e) {
+            sessionStorage.removeItem('currentUser');
+        }
+    }
+    </script>
 </body>
 </html>
