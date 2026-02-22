@@ -1,5 +1,4 @@
-# Не загружать чувствительные данные
+node_modules/
+database.json
 *.log
-*.json
 .DS_Store
-**/.DS_Store
