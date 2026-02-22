@@ -14,12 +14,13 @@
             align-items: center;
         }
         .container {
-            width: 1000px;
-            height: 700px;
+            width: 1200px;
+            height: 800px;
             background: white;
             border-radius: 20px;
             display: flex;
             overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         .sidebar {
             width: 300px;
@@ -43,14 +44,47 @@
             border-bottom: 1px solid #dee2e6;
         }
         .avatar {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             background: #6d28d9;
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .avatar-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .search {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .search input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            background: #e9ecef;
+        }
+        .tab.active {
+            background: white;
+            font-weight: bold;
         }
         .contacts {
             flex: 1;
@@ -82,6 +116,9 @@
             padding: 20px;
             border-bottom: 1px solid #dee2e6;
             background: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         .messages {
             flex: 1;
@@ -92,8 +129,10 @@
         .message {
             margin-bottom: 15px;
             max-width: 70%;
+            display: flex;
+            flex-direction: column;
         }
-        .message.sent { margin-left: auto; }
+        .message.sent { margin-left: auto; align-items: flex-end; }
         .message.sent .bubble {
             background: #6d28d9;
             color: white;
@@ -106,6 +145,15 @@
         }
         .bubble {
             padding: 12px 16px;
+            word-wrap: break-word;
+        }
+        .media {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+        }
+        .audio {
+            width: 250px;
         }
         .message-input {
             padding: 20px;
@@ -113,8 +161,9 @@
             gap: 10px;
             background: white;
             border-top: 1px solid #dee2e6;
+            flex-wrap: wrap;
         }
-        .message-input input {
+        .message-input input[type="text"] {
             flex: 1;
             padding: 12px;
             border: 2px solid #dee2e6;
@@ -127,6 +176,13 @@
             color: white;
             border: none;
             border-radius: 25px;
+            cursor: pointer;
+        }
+        .attach-btn {
+            background: #28a745;
+            padding: 12px 20px;
+            border-radius: 25px;
+            color: white;
             cursor: pointer;
         }
         .login-modal {
@@ -144,7 +200,7 @@
             width: 400px;
             text-align: center;
         }
-        .login-form input {
+        .login-form input, .login-form textarea {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -172,30 +228,86 @@
             font-weight: bold;
             font-size: 13px;
         }
+        .profile {
+            padding: 20px;
+            text-align: center;
+        }
+        .profile .big-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #6d28d9;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            cursor: pointer;
+        }
+        .video-call {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        .video-call video {
+            width: 400px;
+            height: 300px;
+            background: black;
+            margin: 10px;
+        }
     </style>
 </head>
 <body>
+    <div class="video-call" id="videoCall">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+        <button onclick="endCall()">Завершить</button>
+    </div>
+
     <div class="container">
         <div class="sidebar">
             <div class="header">
                 <h1>🐱 CatMe</h1>
             </div>
-            <div class="user-info">
+            <div class="user-info" onclick="showProfile()">
                 <div class="avatar" id="userAvatar">?</div>
                 <div>
                     <div id="userName">Гость</div>
                     <small id="userStatus"></small>
                 </div>
             </div>
+            <div class="search">
+                <input type="text" id="searchInput" placeholder="Поиск..." oninput="search()">
+            </div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('chats')">Чаты</div>
+                <div class="tab" onclick="switchTab('contacts')">Контакты</div>
+                <div class="tab" onclick="switchTab('groups')">Группы</div>
+                <div class="tab" onclick="switchTab('channels')">Каналы</div>
+            </div>
             <div class="contacts" id="contactsList"></div>
         </div>
         <div class="chat-area">
             <div class="chat-header" id="chatHeader">
-                <h3 id="contactName">Выберите контакт</h3>
+                <div class="avatar" id="contactAvatar">🐱</div>
+                <div>
+                    <h3 id="contactName">Выберите контакт</h3>
+                    <small id="contactStatus"></small>
+                </div>
+                <button onclick="startVideoCall()" id="callBtn" style="display:none;">📹</button>
             </div>
             <div class="messages" id="messages"></div>
             <div class="message-input">
                 <input type="text" id="messageInput" placeholder="Сообщение..." disabled>
+                <input type="file" id="fileInput" style="display:none;" onchange="uploadFile()">
+                <span class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</span>
                 <button id="sendButton" disabled>➤</button>
             </div>
         </div>
@@ -206,6 +318,7 @@
             <h2>🐱 CatMe</h2>
             <input type="text" id="loginName" placeholder="Имя">
             <input type="password" id="loginPass" placeholder="Пароль">
+            <textarea id="loginBio" placeholder="О себе (необязательно)"></textarea>
             <div class="btn-group">
                 <button class="btn-login" onclick="login()">Войти</button>
                 <button class="btn-register" onclick="register()">Регистрация</button>
@@ -216,189 +329,311 @@
     <script>
         const API_URL = window.location.origin;
         const WS_URL = API_URL.replace('http', 'ws');
-        
+
         let socket = null;
         let currentUser = null;
-        let currentContact = null;
+        let currentChat = null;
         let onlineUsers = new Set();
-        let bots = [
-            { id: 'cat1', name: 'Мурзик', avatar: '🐱' },
-            { id: 'cat2', name: 'Барсик', avatar: '😸' },
-            { id: 'cat3', name: 'Рыжик', avatar: '😻' },
-            { id: 'cat4', name: 'Снежок', avatar: '❄️' },
-            { id: 'cat5', name: 'Василий', avatar: '😼' }
-        ];
+        let allUsers = [];
+        let groups = [];
+        let channels = [];
+        let friends = [];
+        let currentTab = 'chats';
+        let peerConnection = null;
+        let localStream = null;
 
+        // WebSocket
         function connectWebSocket() {
             socket = new WebSocket(WS_URL);
             socket.onopen = () => {
-                if (currentUser) {
-                    socket.send(JSON.stringify({
-                        type: 'login',
-                        userId: currentUser.id,
-                        userName: currentUser.name
-                    }));
-                }
+                if (currentUser) socket.send(JSON.stringify({ type: 'login', userId: currentUser.id, userName: currentUser.name }));
             };
             socket.onmessage = (e) => {
                 const data = JSON.parse(e.data);
-                if (data.type === 'online') {
-                    onlineUsers = new Set(data.users);
-                    loadContacts();
-                }
+                if (data.type === 'online') { onlineUsers = new Set(data.users); loadContacts(); }
                 if (data.type === 'message') {
-                    if (currentContact && data.from === currentContact.id) {
-                        addMessage(data.text, false);
+                    if (currentChat && (data.message.chatId === currentChat.id || data.message.from === currentChat.id)) {
+                        addMessage(data.message);
                     }
+                }
+                if (data.type === 'call-offer' || data.type === 'call-answer' || data.type === 'ice-candidate') {
+                    handleWebRTCSignal(data);
                 }
             };
             socket.onclose = () => setTimeout(connectWebSocket, 3000);
         }
 
+        // Авторизация
         async function login() {
             const name = document.getElementById('loginName').value.trim();
             const pass = document.getElementById('loginPass').value;
-            
             const res = await fetch(API_URL + '/api/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, password: pass})
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, password: pass })
             });
-            
             if (res.ok) {
                 currentUser = await res.json();
+                friends = currentUser.friends || [];
                 document.getElementById('loginModal').style.display = 'none';
                 document.getElementById('userName').textContent = currentUser.name;
                 document.getElementById('userAvatar').textContent = currentUser.avatar;
                 document.getElementById('userStatus').textContent = 'Онлайн';
                 connectWebSocket();
-                loadContacts();
-            } else {
-                alert('Ошибка входа');
-            }
+                loadUsers();
+            } else alert('Ошибка входа');
         }
 
         async function register() {
             const name = document.getElementById('loginName').value.trim();
             const pass = document.getElementById('loginPass').value;
-            
+            const bio = document.getElementById('loginBio').value;
             const res = await fetch(API_URL + '/api/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, password: pass})
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, password: pass, bio })
             });
-            
-            if (res.ok) {
-                alert('Аккаунт создан! Теперь войдите');
-            } else {
-                alert('Ошибка регистрации');
-            }
+            if (res.ok) alert('Аккаунт создан! Войдите');
+            else alert('Ошибка');
         }
 
-        async function loadContacts() {
+        async function loadUsers() {
             const res = await fetch(API_URL + '/api/users');
-            const users = await res.json();
-            
+            allUsers = await res.json();
+            const groupsRes = await fetch(API_URL + '/api/groups');
+            groups = await groupsRes.json();
+            const channelsRes = await fetch(API_URL + '/api/channels');
+            channels = await channelsRes.json();
+            loadContacts();
+        }
+
+        function loadContacts() {
             const list = document.getElementById('contactsList');
             list.innerHTML = '';
-            
-            // Боты
-            const botSection = document.createElement('div');
-            botSection.className = 'section';
-            botSection.textContent = '🤖 БОТЫ';
-            list.appendChild(botSection);
-            
-            bots.forEach(bot => {
-                const div = createContactDiv(bot, true);
-                list.appendChild(div);
-            });
-            
-            // Онлайн пользователи
-            const online = users.filter(u => u.id !== currentUser?.id && onlineUsers.has(u.id));
-            if (online.length > 0) {
-                const onlineSection = document.createElement('div');
-                onlineSection.className = 'section';
-                onlineSection.textContent = '🟢 ОНЛАЙН';
-                list.appendChild(onlineSection);
-                online.forEach(u => {
-                    const div = createContactDiv(u, true);
+
+            if (currentTab === 'chats') {
+                // Недавние чаты
+            } else if (currentTab === 'contacts') {
+                const friendsList = allUsers.filter(u => friends.includes(u.id));
+                friendsList.forEach(u => {
+                    const div = createContactDiv(u, onlineUsers.has(u.id));
+                    div.innerHTML += `<button onclick="addFriend('${u.id}')">➕</button>`;
                     list.appendChild(div);
                 });
-            }
-            
-            // Остальные
-            const offline = users.filter(u => u.id !== currentUser?.id && !onlineUsers.has(u.id));
-            if (offline.length > 0) {
-                const offlineSection = document.createElement('div');
-                offlineSection.className = 'section';
-                offlineSection.textContent = '👥 ПОЛЬЗОВАТЕЛИ';
-                list.appendChild(offlineSection);
-                offline.forEach(u => {
-                    const div = createContactDiv(u, false);
+                const others = allUsers.filter(u => !friends.includes(u.id) && u.id !== currentUser.id);
+                others.forEach(u => {
+                    const div = createContactDiv(u, onlineUsers.has(u.id));
+                    div.innerHTML += `<button onclick="addFriend('${u.id}')">➕</button>`;
                     list.appendChild(div);
                 });
+            } else if (currentTab === 'groups') {
+                groups.forEach(g => {
+                    const div = createContactDiv(g, false);
+                    div.innerHTML += `<button onclick="joinGroup('${g.id}')">➕</button>`;
+                    list.appendChild(div);
+                });
+                list.innerHTML += '<button onclick="createGroup()">➕ Создать группу</button>';
+            } else if (currentTab === 'channels') {
+                channels.forEach(c => {
+                    const div = createContactDiv(c, false);
+                    div.innerHTML += `<button onclick="subscribeChannel('${c.id}')">➕</button>`;
+                    list.appendChild(div);
+                });
+                list.innerHTML += '<button onclick="createChannel()">➕ Создать канал</button>';
             }
         }
 
-        function createContactDiv(user, isOnline) {
+        function createContactDiv(entity, isOnline) {
             const div = document.createElement('div');
             div.className = 'contact';
-            div.onclick = () => selectContact(user);
+            div.onclick = () => selectChat(entity);
             div.innerHTML = `
-                <div class="avatar">${user.avatar || user.name.charAt(0)}</div>
-                <div style="flex:1;">${user.name}</div>
+                <div class="avatar">${entity.avatar || entity.name.charAt(0)}</div>
+                <div style="flex:1;">${entity.name}</div>
                 <div class="dot ${isOnline ? 'online' : 'offline'}"></div>
             `;
             return div;
         }
 
-        function selectContact(contact) {
-            currentContact = contact;
-            document.getElementById('contactName').textContent = contact.name;
-            document.getElementById('messageInput').disabled = false;
-            document.getElementById('sendButton').disabled = false;
-            loadMessages(contact.id);
+        async function addFriend(friendId) {
+            await fetch(API_URL + '/api/add-friend', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id, friendId })
+            });
+            friends.push(friendId);
+            loadContacts();
         }
 
-        async function loadMessages(contactId) {
-            const res = await fetch(API_URL + `/api/messages/${currentUser.id}`);
-            const allMessages = await res.json();
-            
-            const msgs = allMessages.filter(m => 
-                m.from === currentUser.id && m.to === contactId ||
-                m.from === contactId && m.to === currentUser.id
-            );
-            
-            document.getElementById('messages').innerHTML = '';
-            msgs.forEach(m => {
-                addMessage(m.text, m.from === currentUser.id);
+        async function createGroup() {
+            const name = prompt('Название группы:');
+            if (!name) return;
+            const res = await fetch(API_URL + '/api/create-group', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, creatorId: currentUser.id })
             });
+            groups.push(await res.json());
+            loadContacts();
+        }
+
+        async function createChannel() {
+            const name = prompt('Название канала:');
+            if (!name) return;
+            const res = await fetch(API_URL + '/api/create-channel', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, creatorId: currentUser.id })
+            });
+            channels.push(await res.json());
+            loadContacts();
+        }
+
+        async function joinGroup(groupId) {
+            await fetch(API_URL + '/api/join-group', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId, userId: currentUser.id })
+            });
+        }
+
+        async function subscribeChannel(channelId) {
+            await fetch(API_URL + '/api/subscribe-channel', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channelId, userId: currentUser.id })
+            });
+        }
+
+        function selectChat(chat) {
+            currentChat = chat;
+            document.getElementById('contactName').textContent = chat.name;
+            document.getElementById('contactAvatar').textContent = chat.avatar || chat.name.charAt(0);
+            document.getElementById('contactStatus').textContent = onlineUsers.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            document.getElementById('callBtn').style.display = 'inline';
+            loadMessages(chat.id);
+        }
+
+        async function loadMessages(chatId) {
+            const res = await fetch(API_URL + `/api/messages/${chatId}`);
+            const messages = await res.json();
+            document.getElementById('messages').innerHTML = '';
+            messages.forEach(m => addMessage(m));
+        }
+
+        function addMessage(msg) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `message ${msg.senderId === currentUser.id ? 'sent' : 'received'}`;
+
+            if (msg.type === 'text') {
+                div.innerHTML = `<div class="bubble">${msg.content}</div>`;
+            } else if (msg.type === 'image') {
+                div.innerHTML = `<img src="${msg.content}" class="media">`;
+            } else if (msg.type === 'audio') {
+                div.innerHTML = `<audio controls src="${msg.content}" class="audio"></audio>`;
+            } else if (msg.type === 'file') {
+                div.innerHTML = `<a href="${msg.content}" download>📎 Скачать файл</a>`;
+            }
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
         }
 
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            
-            if (!text || !currentContact) return;
-            
-            const msg = {
-                type: 'message',
-                from: currentUser.id,
-                to: currentContact.id,
-                text: text,
-                time: Date.now()
-            };
-            
-            socket.send(JSON.stringify(msg));
-            addMessage(text, true);
+            if (!text || !currentChat) return;
+
+            fetch(API_URL + '/api/upload', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, chatId: currentChat.id, senderId: currentUser.id })
+            });
             input.value = '';
         }
 
-        function addMessage(text, isSent) {
-            const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : 'received'}`;
-            div.innerHTML = `<div class="bubble">${text}</div>`;
-            document.getElementById('messages').appendChild(div);
+        function uploadFile() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                let type = 'file';
+                if (file.type.startsWith('image/')) type = 'image';
+                else if (file.type.startsWith('audio/')) type = 'audio';
+
+                fetch(API_URL + '/api/upload', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file: e.target.result, type, chatId: currentChat.id, senderId: currentUser.id })
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function search() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return loadContacts();
+            const res = await fetch(API_URL + `/api/search?q=${query}`);
+            const results = await res.json();
+            const list = document.getElementById('contactsList');
+            list.innerHTML = '';
+            [...results.users, ...results.groups, ...results.channels].forEach(r => {
+                list.appendChild(createContactDiv(r, false));
+            });
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadContacts();
+        }
+
+        function showProfile() {
+            document.getElementById('messages').innerHTML = `
+                <div class="profile">
+                    <div class="big-avatar" onclick="changeAvatar()">${currentUser.avatar}</div>
+                    <h2>${currentUser.name}</h2>
+                    <p>${currentUser.bio || 'Пока ничего не рассказал'}</p>
+                    <button onclick="editProfile()">✏️ Редактировать</button>
+                </div>
+            `;
+        }
+
+        // Видеозвонки
+        async function startVideoCall() {
+            if (!currentChat || !onlineUsers.has(currentChat.id)) return alert('Пользователь не в сети');
+            document.getElementById('videoCall').style.display = 'block';
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('localVideo').srcObject = localStream;
+
+            const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate, to: currentChat.id }));
+                }
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.send(JSON.stringify({ type: 'call-offer', offer, to: currentChat.id }));
+        }
+
+        function handleWebRTCSignal(data) {
+            if (data.type === 'call-offer' && data.to === currentUser.id) {
+                // Принять звонок
+            } else if (data.type === 'call-answer') {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (data.type === 'ice-candidate') {
+                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        }
+
+        function endCall() {
+            if (peerConnection) peerConnection.close();
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            document.getElementById('videoCall').style.display = 'none';
         }
 
         document.getElementById('sendButton').onclick = sendMessage;
