@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe - Мессенджер</title>
+    <title>CatMe</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            font-family: sans-serif;
         }
-        .container {
+        .app {
             width: 1000px;
             height: 700px;
             background: white;
@@ -24,7 +24,7 @@
         .sidebar {
             width: 300px;
             background: #f8f9fa;
-            border-right: 1px solid #dee2e6;
+            border-right: 1px solid #ccc;
             display: flex;
             flex-direction: column;
         }
@@ -34,13 +34,12 @@
             color: white;
             text-align: center;
         }
-        .user-info {
+        .user {
             padding: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
-            background: white;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid #ccc;
         }
         .avatar {
             width: 40px;
@@ -51,6 +50,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-weight: bold;
         }
         .contacts {
             flex: 1;
@@ -62,66 +62,65 @@
             align-items: center;
             gap: 10px;
             cursor: pointer;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid #ccc;
         }
         .contact:hover { background: #e9ecef; }
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: auto;
-        }
-        .online { background: #10b981; }
-        .offline { background: #9ca3af; }
-        .chat-area {
+        .online { width: 10px; height: 10px; border-radius: 50%; margin-left: auto; }
+        .online.true { background: #10b981; }
+        .online.false { background: #9ca3af; }
+        .chat {
             flex: 1;
             display: flex;
             flex-direction: column;
         }
         .chat-header {
             padding: 20px;
-            border-bottom: 1px solid #dee2e6;
-            background: white;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         .messages {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
-            background: #f8f9fa;
+            background: #f1f3f5;
         }
-        .message {
+        .msg {
             margin-bottom: 15px;
             max-width: 70%;
         }
-        .message.sent { margin-left: auto; }
-        .message.sent .bubble {
+        .msg.sent { margin-left: auto; }
+        .msg.sent .bubble {
             background: #6d28d9;
             color: white;
             border-radius: 18px 18px 4px 18px;
         }
-        .message.received .bubble {
+        .msg.recv .bubble {
             background: white;
-            border: 1px solid #dee2e6;
+            border: 1px solid #ccc;
             border-radius: 18px 18px 18px 4px;
         }
         .bubble {
             padding: 12px 16px;
         }
-        .message-input {
+        .media { max-width: 250px; max-height: 250px; border-radius: 10px; }
+        .audio { width: 250px; }
+        .input {
             padding: 20px;
             display: flex;
             gap: 10px;
             background: white;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid #ccc;
         }
-        .message-input input {
+        .input input[type="text"] {
             flex: 1;
             padding: 12px;
-            border: 2px solid #dee2e6;
+            border: 2px solid #ccc;
             border-radius: 25px;
             outline: none;
         }
-        .message-input button {
+        .input button {
             padding: 12px 24px;
             background: #6d28d9;
             color: white;
@@ -129,7 +128,14 @@
             border-radius: 25px;
             cursor: pointer;
         }
-        .login-modal {
+        .attach {
+            background: #28a745;
+            padding: 12px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+        }
+        .login {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.9);
@@ -141,14 +147,14 @@
             background: white;
             padding: 40px;
             border-radius: 20px;
-            width: 400px;
+            width: 350px;
             text-align: center;
         }
         .login-form input {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
-            border: 2px solid #dee2e6;
+            border: 2px solid #ccc;
             border-radius: 8px;
         }
         .btn-group {
@@ -156,239 +162,248 @@
             gap: 10px;
             margin: 20px 0;
         }
+        .btn-group button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
         .btn-login { background: #6d28d9; color: white; }
-        .btn-register { background: #10b981; color: white; }
+        .btn-reg { background: #10b981; color: white; }
+        .call-window {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        .call-window video {
+            width: 400px;
+            height: 300px;
+            background: black;
+            margin: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="call-window" id="callWindow">
+        <video id="local" autoplay muted></video>
+        <video id="remote" autoplay></video>
+        <button onclick="hangup()">Завершить</button>
+    </div>
+
+    <div class="app">
         <div class="sidebar">
-            <div class="header">
-                <h1>🐱 CatMe</h1>
+            <div class="header"><h1>🐱 CatMe</h1></div>
+            <div class="user" onclick="profile()">
+                <div class="avatar" id="myAvatar">?</div>
+                <div><div id="myName">Гость</div><small id="myStatus"></small></div>
             </div>
-            <div class="user-info">
-                <div class="avatar" id="userAvatar">?</div>
-                <div>
-                    <div id="userName">Гость</div>
-                    <small id="userStatus"></small>
-                </div>
-            </div>
-            <div class="contacts" id="contactsList"></div>
+            <div class="contacts" id="contacts"></div>
         </div>
-        <div class="chat-area">
+        <div class="chat">
             <div class="chat-header" id="chatHeader">
-                <h3 id="contactName">Выберите контакт</h3>
-                <small id="contactStatus"></small>
+                <div class="avatar" id="chatAvatar">🐱</div>
+                <div><h3 id="chatName">Выбери чат</h3><small id="chatStatus"></small></div>
+                <button onclick="call()" id="callBtn" style="display:none;">📹</button>
             </div>
             <div class="messages" id="messages"></div>
-            <div class="message-input">
-                <input type="text" id="messageInput" placeholder="Сообщение..." disabled>
-                <button id="sendButton" disabled>➤</button>
+            <div class="input">
+                <input type="text" id="msgInput" placeholder="Сообщение..." disabled>
+                <input type="file" id="fileInput" style="display:none;" onchange="sendFile()">
+                <span class="attach" onclick="document.getElementById('fileInput').click()">📎</span>
+                <button id="sendBtn" disabled>➤</button>
             </div>
         </div>
     </div>
 
-    <div class="login-modal" id="loginModal">
+    <div class="login" id="login">
         <div class="login-form">
             <h2>🐱 CatMe</h2>
             <input type="text" id="loginName" placeholder="Имя">
             <input type="password" id="loginPass" placeholder="Пароль">
             <div class="btn-group">
                 <button class="btn-login" onclick="login()">Войти</button>
-                <button class="btn-register" onclick="register()">Регистрация</button>
+                <button class="btn-reg" onclick="reg()">Регистрация</button>
             </div>
         </div>
     </div>
 
     <script>
-        const API_URL = window.location.origin;
-        const WS_URL = API_URL.replace('http', 'ws');
+        const API = window.location.origin;
+        const WS = API.replace('http', 'ws');
 
-        let socket = null;
-        let currentUser = null;
-        let currentContact = null;
-        let onlineUsers = new Set();
-        let allUsers = [];
+        let socket, me, chat, pc, localStream;
+        let online = new Set();
+        let users = [];
 
         // WebSocket
-        function connectWebSocket() {
-            socket = new WebSocket(WS_URL);
-            
-            socket.onopen = () => {
-                if (currentUser) {
-                    socket.send(JSON.stringify({
-                        type: 'login',
-                        userId: currentUser.id
-                    }));
-                }
-            };
-            
+        function connect() {
+            socket = new WebSocket(WS);
+            socket.onopen = () => socket.send(JSON.stringify({ type: 'login', id: me.id }));
             socket.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                
-                if (data.type === 'online') {
-                    onlineUsers = new Set(data.users);
-                    loadContacts();
+                const d = JSON.parse(e.data);
+                if (d.type === 'online') { online = new Set(d.list); loadContacts(); updateStatus(); }
+                if (d.type === 'msg') {
+                    if (chat && (d.msg.from === chat.id || d.msg.to === chat.id)) addMsg(d.msg);
+                    else if (d.msg.from !== me.id) alert('✉ ' + (users.find(u => u.id === d.msg.from)?.name || 'кто-то'));
                 }
-                
-                if (data.type === 'message') {
-                    // Если это сообщение для текущего чата
-                    if (currentContact && data.message.from === currentContact.id) {
-                        addMessage(data.message.text, false);
-                    }
-                    // Если это наше сообщение (подтверждение)
-                    else if (data.message.from === currentUser?.id) {
-                        // Игнорируем, уже добавили
-                    }
-                    // Если сообщение от другого
-                    else {
-                        alert(`Новое сообщение от ${data.message.from}`);
-                    }
-                }
+                if (d.type === 'call') handleOffer(d);
+                if (d.type === 'answer') pc?.setRemoteDescription(new RTCSessionDescription(d.answer));
+                if (d.type === 'ice') pc?.addIceCandidate(new RTCIceCandidate(d.candidate));
             };
-            
-            socket.onclose = () => {
-                setTimeout(connectWebSocket, 3000);
-            };
+            socket.onclose = () => setTimeout(connect, 2000);
         }
 
-        // Авторизация
+        // вход/регистрация
         async function login() {
-            const name = document.getElementById('loginName').value.trim();
-            const pass = document.getElementById('loginPass').value;
-            
-            const res = await fetch(API_URL + '/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, password: pass })
-            });
-            
-            if (res.ok) {
-                currentUser = await res.json();
-                document.getElementById('loginModal').style.display = 'none';
-                document.getElementById('userName').textContent = currentUser.name;
-                document.getElementById('userAvatar').textContent = currentUser.avatar;
-                document.getElementById('userStatus').textContent = 'Онлайн';
-                
-                await loadUsers();
-                connectWebSocket();
-            } else {
-                alert('Ошибка входа');
-            }
+            const n = document.getElementById('loginName').value.trim();
+            const p = document.getElementById('loginPass').value;
+            const r = await fetch(API + '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:n, pass:p}) });
+            if (!r.ok) return alert('Неверно');
+            me = await r.json();
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('myName').innerText = me.name;
+            document.getElementById('myAvatar').innerText = me.avatar;
+            document.getElementById('myStatus').innerText = 'Онлайн';
+            await loadUsers();
+            connect();
         }
-
-        async function register() {
-            const name = document.getElementById('loginName').value.trim();
-            const pass = document.getElementById('loginPass').value;
-            
-            const res = await fetch(API_URL + '/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, password: pass })
-            });
-            
-            if (res.ok) {
-                alert('Аккаунт создан! Теперь войдите');
-            } else {
-                alert('Ошибка регистрации');
-            }
+        async function reg() {
+            const n = document.getElementById('loginName').value.trim();
+            const p = document.getElementById('loginPass').value;
+            const r = await fetch(API + '/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:n, pass:p}) });
+            if (r.ok) alert('Ок, теперь войди'); else alert('Ошибка');
         }
-
         async function loadUsers() {
-            const res = await fetch(API_URL + '/api/users');
-            allUsers = await res.json();
+            const r = await fetch(API + '/api/users');
+            users = await r.json();
             loadContacts();
         }
 
+        // контакты
         function loadContacts() {
-            const list = document.getElementById('contactsList');
+            const list = document.getElementById('contacts');
             list.innerHTML = '';
-            
-            // Боты
-            const bots = [
-                { id: 'cat1', name: 'Мурзик', avatar: '🐱' },
-                { id: 'cat2', name: 'Барсик', avatar: '😸' },
-                { id: 'cat3', name: 'Рыжик', avatar: '😻' }
-            ];
-            
-            bots.forEach(bot => {
-                const div = createContactDiv(bot, true);
-                list.appendChild(div);
+            [{id:'cat1',name:'Мурзик',avatar:'🐱'},{id:'cat2',name:'Барсик',avatar:'😸'},{id:'cat3',name:'Рыжик',avatar:'😻'}].forEach(b => {
+                list.appendChild(contactDiv(b, true));
             });
-            
-            // Реальные пользователи
-            const otherUsers = allUsers.filter(u => u.id !== currentUser?.id);
-            otherUsers.forEach(u => {
-                const div = createContactDiv(u, onlineUsers.has(u.id));
-                list.appendChild(div);
+            users.filter(u => u.id !== me.id).forEach(u => {
+                list.appendChild(contactDiv(u, online.has(u.id)));
             });
         }
+        function contactDiv(u, on) {
+            const d = document.createElement('div');
+            d.className = 'contact';
+            d.onclick = () => selectChat(u);
+            d.innerHTML = `<div class="avatar">${u.avatar}</div><div style="flex:1">${u.name}</div><div class="online ${on}"></div>`;
+            return d;
+        }
 
-        function createContactDiv(user, isOnline) {
+        // чат
+        function selectChat(u) {
+            chat = u;
+            document.getElementById('chatName').innerText = u.name;
+            document.getElementById('chatAvatar').innerText = u.avatar;
+            document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('callBtn').style.display = u.id.startsWith('cat') ? 'none' : 'inline';
+            loadHistory(u.id);
+        }
+        async function loadHistory(id) {
+            const r = await fetch(API + `/api/messages/${me.id}/${id}`);
+            const list = await r.json();
+            document.getElementById('messages').innerHTML = '';
+            list.forEach(m => addMsg(m));
+        }
+        function addMsg(m) {
             const div = document.createElement('div');
-            div.className = 'contact';
-            div.onclick = () => selectContact(user);
-            div.innerHTML = `
-                <div class="avatar">${user.avatar || user.name.charAt(0)}</div>
-                <div style="flex:1;">${user.name}</div>
-                <div class="status-dot ${isOnline ? 'online' : 'offline'}"></div>
-            `;
-            return div;
+            div.className = `msg ${m.from === me.id ? 'sent' : 'recv'}`;
+            if (m.type === 'text') div.innerHTML = `<div class="bubble">${m.data}</div>`;
+            else if (m.type === 'image') div.innerHTML = `<img src="${m.data}" class="media">`;
+            else if (m.type === 'audio') div.innerHTML = `<audio controls src="${m.data}" class="audio"></audio>`;
+            else if (m.type === 'file') div.innerHTML = `<a href="${m.data}" download>📎 файл</a>`;
+            document.getElementById('messages').appendChild(div);
+            div.scrollIntoView();
         }
 
-        function selectContact(contact) {
-            currentContact = contact;
-            document.getElementById('contactName').textContent = contact.name;
-            document.getElementById('contactStatus').textContent = onlineUsers.has(contact.id) ? '🟢 Онлайн' : '⚫ Офлайн';
-            document.getElementById('messageInput').disabled = false;
-            document.getElementById('sendButton').disabled = false;
-            loadMessages(contact.id);
+        // отправка
+        function sendMsg() {
+            const inp = document.getElementById('msgInput');
+            const t = inp.value.trim();
+            if (!t || !chat) return;
+            socket.send(JSON.stringify({ type:'msg', from:me.id, to:chat.id, data:t }));
+            addMsg({ from:me.id, to:chat.id, type:'text', data:t });
+            inp.value = '';
+        }
+        function sendFile() {
+            const f = document.getElementById('fileInput').files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = (e) => {
+                let type = 'file';
+                if (f.type.startsWith('image/')) type = 'image';
+                else if (f.type.startsWith('audio/')) type = 'audio';
+                fetch(API + '/api/upload', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({ from:me.id, to:chat.id, type, data:e.target.result })
+                });
+                addMsg({ from:me.id, to:chat.id, type, data:e.target.result });
+            };
+            r.readAsDataURL(f);
         }
 
-        async function loadMessages(contactId) {
-            const res = await fetch(API_URL + `/api/messages/${currentUser.id}/${contactId}`);
-            const messages = await res.json();
-            
-            const container = document.getElementById('messages');
-            container.innerHTML = '';
-            
-            messages.forEach(m => {
-                addMessage(m.text, m.from === currentUser.id);
+        // звонки
+        async function call() {
+            if (!chat || !online.has(chat.id)) return alert('Не в сети');
+            document.getElementById('callWindow').style.display = 'block';
+            localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+            document.getElementById('local').srcObject = localStream;
+            pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            pc.ontrack = e => document.getElementById('remote').srcObject = e.streams[0];
+            pc.onicecandidate = e => e.candidate && socket.send(JSON.stringify({ type:'ice', candidate:e.candidate, to:chat.id }));
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.send(JSON.stringify({ type:'call', offer, to:chat.id }));
+        }
+        function handleOffer(d) {
+            if (!confirm('Звонок от ' + (users.find(u => u.id === d.from)?.name || 'кого-то') + '. Ответить?')) return;
+            document.getElementById('callWindow').style.display = 'block';
+            navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(s => {
+                localStream = s;
+                document.getElementById('local').srcObject = s;
+                pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
+                s.getTracks().forEach(t => pc.addTrack(t, s));
+                pc.ontrack = e => document.getElementById('remote').srcObject = e.streams[0];
+                pc.onicecandidate = e => e.candidate && socket.send(JSON.stringify({ type:'ice', candidate:e.candidate, to:d.from }));
+                pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+                pc.createAnswer().then(ans => {
+                    pc.setLocalDescription(ans);
+                    socket.send(JSON.stringify({ type:'answer', answer:ans, to:d.from }));
+                });
             });
         }
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            
-            if (!text || !currentContact) return;
-            
-            // Отправляем через WebSocket
-            socket.send(JSON.stringify({
-                type: 'message',
-                from: currentUser.id,
-                to: currentContact.id,
-                text: text
-            }));
-            
-            // Добавляем в чат сразу
-            addMessage(text, true);
-            input.value = '';
+        function hangup() {
+            if (pc) pc.close();
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            document.getElementById('callWindow').style.display = 'none';
+        }
+        function updateStatus() {
+            document.getElementById('chatStatus').innerText = chat && online.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+        }
+        function profile() {
+            document.getElementById('messages').innerHTML = `<div style="text-align:center;padding:50px"><h2>${me.name}</h2><p>id: ${me.id}</p></div>`;
         }
 
-        function addMessage(text, isSent) {
-            const container = document.getElementById('messages');
-            const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : 'received'}`;
-            div.innerHTML = `<div class="bubble">${text}</div>`;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        document.getElementById('sendButton').onclick = sendMessage;
-        document.getElementById('messageInput').onkeypress = (e) => {
-            if (e.key === 'Enter') sendMessage();
-        };
+        document.getElementById('sendBtn').onclick = sendMsg;
+        document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMsg();
     </script>
 </body>
 </html>
