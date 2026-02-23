@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — мессенджер кошачий</title>
+    <title>CatMe — финал</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -207,11 +207,10 @@
 
         let socket, me, chat, online = new Set(), users = [];
 
-        // --- WebSocket (главное) ---
         function connect() {
             socket = new WebSocket(WS);
             socket.onopen = () => {
-                if (me) socket.send(JSON.stringify({ type: 'login', id: me.id }));
+                if (me) socket.send(JSON.stringify({ type: 'login', id: me.id, name: me.name }));
             };
             socket.onmessage = (e) => {
                 const d = JSON.parse(e.data);
@@ -229,7 +228,6 @@
             socket.onclose = () => setTimeout(connect, 1000);
         }
 
-        // --- авторизация ---
         async function login() {
             const n = document.getElementById('loginName').value.trim();
             const p = document.getElementById('loginPass').value;
@@ -262,7 +260,6 @@
             renderContacts();
         }
 
-        // --- список контактов ---
         function renderContacts() {
             const list = document.getElementById('contacts');
             list.innerHTML = '';
@@ -283,17 +280,18 @@
             return d;
         }
 
-        // --- выбор чата ---
         function selectChat(u) {
             chat = u;
             document.getElementById('chatName').innerText = u.name;
             document.getElementById('chatAvatar').innerText = u.avatar;
             document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
             
-            // 👇 фикс поля
-            document.getElementById('msgInput').disabled = false;
-            document.getElementById('sendBtn').disabled = false;
-            document.getElementById('msgInput').focus();
+            // ПОЛЕ ТОЧНО ВКЛЮЧАЕТСЯ
+            const inp = document.getElementById('msgInput');
+            const btn = document.getElementById('sendBtn');
+            inp.disabled = false;
+            btn.disabled = false;
+            inp.focus();
 
             loadHistory(u.id);
         }
@@ -313,7 +311,6 @@
             div.scrollIntoView();
         }
 
-        // --- отправка сообщения (WebSocket) ---
         function sendMessage() {
             const inp = document.getElementById('msgInput');
             const text = inp.value.trim();
@@ -328,7 +325,7 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
-            inp.focus(); // 👈 возвращаем фокус
+            inp.focus(); // ВОЗВРАЩАЕМ ФОКУС
         }
 
         function updateStatus() {
