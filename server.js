@@ -8,138 +8,104 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.static(path.join(__dirname)));
 
-const DB_FILE = path.join(__dirname, 'database.json');
+const DB_FILE = path.join(__dirname, 'db.json');
 
-function loadDatabase() {
+function loadDB() {
     try {
         if (fs.existsSync(DB_FILE)) {
-            const data = fs.readFileSync(DB_FILE, 'utf8');
-            return JSON.parse(data);
+            return JSON.parse(fs.readFileSync(DB_FILE));
         }
     } catch (e) {}
-    return { users: [], messages: [] };
+    return { users: [], messages: [], groups: [] };
 }
 
-function saveDatabase() {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-    } catch (e) {}
+function saveDB() {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-let db = loadDatabase();
-let onlineUsers = new Map();
+let db = loadDB();
+let online = new Map();
 
-function hashPassword(pass) {
-    if (!pass) return '';
-    let hash = 0;
-    for (let i = 0; i < pass.length; i++) {
-        hash = ((hash << 5) - hash) + pass.charCodeAt(i);
-    }
-    return Math.abs(hash).toString(36);
+function hash(p) {
+    let h = 0;
+    for (let i = 0; i < p.length; i++) h = ((h << 5) - h) + p.charCodeAt(i);
+    return Math.abs(h).toString(36);
 }
 
-// API
 app.post('/api/register', (req, res) => {
-    const { name, password } = req.body;
-    if (db.users.find(u => u.name === name)) {
-        return res.status(400).json({ error: 'Уже есть' });
-    }
-    const user = {
-        id: 'user_' + Date.now(),
-        name,
-        avatar: name.charAt(0).toUpperCase(),
-        password: hashPassword(password)
-    };
+    const { name, pass } = req.body;
+    if (db.users.find(u => u.name === name)) return res.status(400).json({ error: 'есть' });
+    const user = { id: 'u' + Date.now(), name, pass: hash(pass), avatar: name[0] };
     db.users.push(user);
-    saveDatabase();
-    res.json({ success: true, user });
+    saveDB();
+    res.json(user);
 });
 
 app.post('/api/login', (req, res) => {
-    const { name, password } = req.body;
-    const user = db.users.find(u => u.name === name);
-    if (!user || user.password !== hashPassword(password)) {
-        return res.status(401).json({ error: 'Неверный логин/пароль' });
-    }
-    res.json(user);
+    const { name, pass } = req.body;
+    const u = db.users.find(u => u.name === name);
+    if (!u || u.pass !== hash(pass)) return res.status(401).json({ error: 'no' });
+    res.json({ id: u.id, name: u.name, avatar: u.avatar });
 });
 
 app.get('/api/users', (req, res) => {
     res.json(db.users.map(u => ({ id: u.id, name: u.name, avatar: u.avatar })));
 });
 
-app.get('/api/messages/:userId1/:userId2', (req, res) => {
-    const { userId1, userId2 } = req.params;
-    const messages = db.messages.filter(m => 
-        (m.from === userId1 && m.to === userId2) ||
-        (m.from === userId2 && m.to === userId1)
+app.get('/api/messages/:me/:to', (req, res) => {
+    const { me, to } = req.params;
+    const list = db.messages.filter(m => 
+        (m.from === me && m.to === to) || (m.from === to && m.to === me)
     );
-    res.json(messages);
+    res.json(list);
 });
 
-// WebSocket
+app.post('/api/upload', (req, res) => {
+    const { from, to, type, data } = req.body;
+    const msg = { id: 'm' + Date.now(), from, to, type, data, time: Date.now() };
+    db.messages.push(msg);
+    saveDB();
+
+    const ws = online.get(to);
+    if (ws) ws.send(JSON.stringify({ type: 'msg', msg }));
+
+    res.json({ ok: true });
+});
+
 wss.on('connection', (ws) => {
-    ws.on('message', (data) => {
-        const msg = JSON.parse(data);
-        
-        if (msg.type === 'login') {
-            ws.userId = msg.userId;
-            onlineUsers.set(msg.userId, ws);
-            
-            // Уведомляем всех о новом онлайн
+    ws.on('message', (d) => {
+        const m = JSON.parse(d);
+        if (m.type === 'login') {
+            ws.id = m.id;
+            online.set(m.id, ws);
             broadcastOnline();
         }
-        
-        if (msg.type === 'message') {
-            // Сохраняем
-            const message = {
-                id: 'msg_' + Date.now(),
-                from: msg.from,
-                to: msg.to,
-                text: msg.text,
-                time: Date.now()
-            };
-            db.messages.push(message);
-            saveDatabase();
-            
-            // Отправляем получателю
-            const recipientWs = onlineUsers.get(msg.to);
-            if (recipientWs) {
-                recipientWs.send(JSON.stringify({
-                    type: 'message',
-                    message: message
-                }));
-            }
-            
-            // Подтверждение отправителю
-            ws.send(JSON.stringify({
-                type: 'sent',
-                id: message.id
-            }));
+        if (m.type === 'msg') {
+            const msg = { id: 'm' + Date.now(), from: m.from, to: m.to, type: 'text', data: m.data, time: Date.now() };
+            db.messages.push(msg);
+            saveDB();
+
+            const to = online.get(m.to);
+            if (to) to.send(JSON.stringify({ type: 'msg', msg }));
+        }
+        if (m.type === 'call' || m.type === 'answer' || m.type === 'ice') {
+            const to = online.get(m.to);
+            if (to) to.send(JSON.stringify(m));
         }
     });
-    
     ws.on('close', () => {
-        if (ws.userId) {
-            onlineUsers.delete(ws.userId);
-            broadcastOnline();
-        }
+        if (ws.id) online.delete(ws.id);
+        broadcastOnline();
     });
 });
 
 function broadcastOnline() {
-    const online = Array.from(onlineUsers.keys());
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'online', users: online }));
-        }
-    });
+    const list = Array.from(online.keys());
+    online.forEach(ws => ws.send(JSON.stringify({ type: 'online', list })));
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`✅ Сервер запущен на порту ${PORT}`);
-});
+server.listen(PORT, () => console.log('✅ http://localhost:' + PORT));
