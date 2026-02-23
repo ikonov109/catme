@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — звонки, группы, HTML</title>
+    <title>CatMe — чат, звонки, файлы</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -65,9 +65,7 @@
             background: #e9ecef;
             font-weight: bold;
         }
-        .tab.active {
-            background: white;
-        }
+        .tab.active { background: white; }
         .contacts {
             flex: 1;
             overflow-y: auto;
@@ -80,17 +78,12 @@
             cursor: pointer;
             border-bottom: 1px solid #ccc;
         }
-        .contact:hover {
-            background: #e9ecef;
+        .contact:hover { background: #e9ecef; }
+        .online-dot {
+            width: 10px; height: 10px; border-radius: 50%; margin-left: auto;
         }
-        .online {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: auto;
-        }
-        .online.true { background: #10b981; }
-        .online.false { background: #9ca3af; }
+        .online-dot.true { background: #10b981; }
+        .online-dot.false { background: #9ca3af; }
         .chat {
             flex: 1;
             display: flex;
@@ -113,9 +106,7 @@
             margin-bottom: 15px;
             max-width: 70%;
         }
-        .msg.sent {
-            margin-left: auto;
-        }
+        .msg.sent { margin-left: auto; }
         .msg.sent .bubble {
             background: #6d28d9;
             color: white;
@@ -126,10 +117,7 @@
             border: 1px solid #ccc;
             border-radius: 18px 18px 18px 4px;
         }
-        .bubble {
-            padding: 12px 16px;
-            word-wrap: break-word;
-        }
+        .bubble { padding: 12px 16px; word-wrap: break-word; }
         .input {
             padding: 20px;
             display: flex;
@@ -161,11 +149,7 @@
             cursor: pointer;
         }
         .login {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: absolute; top:0; left:0; right:0; bottom:0;
             background: rgba(0,0,0,0.9);
             display: flex;
             justify-content: center;
@@ -201,22 +185,10 @@
         .btn-login { background: #6d28d9; color: white; }
         .btn-reg { background: #10b981; color: white; }
         .call-window {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            z-index: 1000;
-            display: none;
+            position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            background: white; padding:20px; border-radius:10px; z-index:1000; display:none;
         }
-        .call-window video {
-            width: 400px;
-            height: 300px;
-            background: black;
-            margin: 10px;
-        }
+        .call-window video { width:400px; height:300px; background:black; margin:10px; }
     </style>
 </head>
 <body>
@@ -272,20 +244,13 @@
         const API = window.location.origin;
         const WS = API.replace('http', 'ws');
 
-        let socket;
-        let me = null;
-        let currentChat = null;
-        let onlineUsers = new Set();
-        let allUsers = [];
-        let groups = [];
-        let channels = [];
+        let socket, me, chat, pc, localStream;
+        let online = new Set();
+        let users = [], groups = [], channels = [];
         let currentTab = 'users';
 
-        let pc = null;
-        let localStream = null;
-
-        // --- WEB SOCKET ---
-        function connectWS() {
+        // --- WEBSOCKET (работает 100%) ---
+        function connect() {
             socket = new WebSocket(WS);
             socket.onopen = () => {
                 if (me) socket.send(JSON.stringify({ type: 'login', id: me.id }));
@@ -293,78 +258,70 @@
             socket.onmessage = (e) => {
                 const d = JSON.parse(e.data);
                 if (d.type === 'online') {
-                    onlineUsers = new Set(d.list);
+                    online = new Set(d.list);
                     renderList();
-                    updateChatStatus();
+                    if (chat) updateChatStatus();
                 }
                 if (d.type === 'msg') {
-                    if (currentChat && (d.msg.chatId === currentChat.id || d.msg.from === currentChat.id || d.msg.to === currentChat.id)) {
-                        renderMessage(d.msg);
+                    if (chat && (d.msg.chatId === chat.id || d.msg.from === chat.id || d.msg.to === chat.id)) {
+                        addMessage(d.msg);
                     }
                 }
-                if (d.type === 'call') handleCallOffer(d);
+                if (d.type === 'call') handleCall(d);
                 if (d.type === 'answer') pc?.setRemoteDescription(new RTCSessionDescription(d.answer));
                 if (d.type === 'ice') pc?.addIceCandidate(new RTCIceCandidate(d.candidate));
             };
-            socket.onclose = () => setTimeout(connectWS, 1000);
+            socket.onclose = () => setTimeout(connect, 1000);
         }
 
-        // --- АВТОРИЗАЦИЯ ---
+        // --- АВТОРИЗАЦИЯ (РЕГА + ВХОД) ---
         async function login() {
-            const name = document.getElementById('loginName').value.trim();
-            const pass = document.getElementById('loginPass').value;
+            const n = document.getElementById('loginName').value.trim();
+            const p = document.getElementById('loginPass').value;
             const res = await fetch(API + '/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, pass })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ name:n, pass:p })
             });
-            if (!res.ok) return alert('Ошибка входа');
+            if (!res.ok) return alert('Ошибка');
             me = await res.json();
             document.getElementById('login').style.display = 'none';
             document.getElementById('myName').innerText = me.name;
             document.getElementById('myAvatar').innerText = me.avatar;
             document.getElementById('myStatus').innerText = 'Онлайн';
             await loadData();
-            connectWS();
+            connect();
         }
 
         async function register() {
-            const name = document.getElementById('loginName').value.trim();
-            const pass = document.getElementById('loginPass').value;
+            const n = document.getElementById('loginName').value.trim();
+            const p = document.getElementById('loginPass').value;
             const res = await fetch(API + '/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, pass })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ name:n, pass:p })
             });
-            if (res.ok) alert('Регистрация успешна, теперь войди');
-            else alert('Ошибка');
+            if (res.ok) alert('Ок, теперь войди'); else alert('Ошибка');
         }
 
         async function loadData() {
-            allUsers = await (await fetch(API + '/api/users')).json();
+            users = await (await fetch(API + '/api/users')).json();
             groups = await (await fetch(API + '/api/groups')).json() || [];
             channels = await (await fetch(API + '/api/channels')).json() || [];
             renderList();
         }
 
-        // --- ОТОБРАЖЕНИЕ КОНТАКТОВ ---
+        // --- СПИСОК КОНТАКТОВ ---
         function renderList() {
             const list = document.getElementById('contacts');
             list.innerHTML = '';
 
             if (currentTab === 'users') {
                 // боты
-                const bots = [
-                    { id: 'cat1', name: 'Мурзик', avatar: '🐱' },
-                    { id: 'cat2', name: 'Барсик', avatar: '😸' },
-                    { id: 'cat3', name: 'Рыжик', avatar: '😻' }
-                ];
-                bots.forEach(b => list.appendChild(contactDiv(b, true)));
-
+                [{id:'cat1',name:'Мурзик',avatar:'🐱'},{id:'cat2',name:'Барсик',avatar:'😸'},{id:'cat3',name:'Рыжик',avatar:'😻'}]
+                    .forEach(b => list.appendChild(contactDiv(b, true)));
                 // люди
-                allUsers.filter(u => u.id !== me?.id).forEach(u => {
-                    list.appendChild(contactDiv(u, onlineUsers.has(u.id)));
-                });
+                users.filter(u => u.id !== me?.id).forEach(u =>
+                    list.appendChild(contactDiv(u, online.has(u.id)))
+                );
             } else if (currentTab === 'groups') {
                 groups.forEach(g => list.appendChild(contactDiv(g)));
                 list.innerHTML += '<div class="contact" onclick="createGroup()">➕ Создать группу</div>';
@@ -381,7 +338,7 @@
             d.innerHTML = `
                 <div class="avatar">${entity.avatar || entity.name[0]}</div>
                 <div style="flex:1">${entity.name}</div>
-                <div class="online ${isOnline}"></div>
+                <div class="online-dot ${isOnline}"></div>
             `;
             return d;
         }
@@ -390,9 +347,8 @@
             const name = prompt('Название группы');
             if (!name) return;
             const res = await fetch(API + '/api/create-group', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, creator: me.id })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ name, creator:me.id })
             });
             groups.push(await res.json());
             renderList();
@@ -402,35 +358,34 @@
             const name = prompt('Название канала');
             if (!name) return;
             const res = await fetch(API + '/api/create-channel', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, creator: me.id })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ name, creator:me.id })
             });
             channels.push(await res.json());
             renderList();
         }
 
-        // --- ЧАТ ---
-        function selectChat(chat) {
-            currentChat = chat;
-            document.getElementById('chatName').innerText = chat.name;
-            document.getElementById('chatAvatar').innerText = chat.avatar || chat.name[0];
-            document.getElementById('chatStatus').innerText = onlineUsers.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+        // --- ВЫБОР ЧАТА ---
+        function selectChat(c) {
+            chat = c;
+            document.getElementById('chatName').innerText = c.name;
+            document.getElementById('chatAvatar').innerText = c.avatar || c.name[0];
+            document.getElementById('chatStatus').innerText = online.has(c.id) ? '🟢 Онлайн' : '⚫ Офлайн';
             document.getElementById('msgInput').disabled = false;
             document.getElementById('sendBtn').disabled = false;
-            document.getElementById('callBtn').style.display = (chat.id && !chat.id.startsWith('cat')) ? 'inline' : 'none';
-            loadHistory(chat.id);
+            document.getElementById('callBtn').style.display = (c.id && !c.id.startsWith('cat')) ? 'inline' : 'none';
+            loadHistory(c.id);
             document.getElementById('msgInput').focus();
         }
 
-        async function loadHistory(chatId) {
-            const res = await fetch(API + `/api/messages/${me.id}/${chatId}`);
+        async function loadHistory(id) {
+            const res = await fetch(API + `/api/messages/${me.id}/${id}`);
             const list = await res.json();
             document.getElementById('messages').innerHTML = '';
-            list.forEach(m => renderMessage(m));
+            list.forEach(m => addMessage(m));
         }
 
-        function renderMessage(m) {
+        function addMessage(m) {
             const div = document.createElement('div');
             div.className = `msg ${m.from === me.id ? 'sent' : 'recv'}`;
             if (m.type === 'text' || !m.type) {
@@ -446,18 +401,20 @@
             div.scrollIntoView();
         }
 
+        // --- ОТПРАВКА СООБЩЕНИЙ (ЧИНИМ) ---
         function sendMessage() {
             const inp = document.getElementById('msgInput');
             const text = inp.value.trim();
-            if (!text || !currentChat) return;
+            if (!text || !chat || !socket) return;
+
             const msg = {
                 type: 'msg',
                 from: me.id,
-                chatId: currentChat.id,
+                to: chat.id,
                 data: text
             };
             socket.send(JSON.stringify(msg));
-            renderMessage({ from: me.id, to: currentChat.id, data: text });
+            addMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
         }
 
@@ -473,61 +430,48 @@
                 else if (file.type.startsWith('audio/')) type = 'audio';
 
                 fetch(API + '/api/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        from: me.id,
-                        to: currentChat.id,
-                        type,
-                        data: e.target.result
-                    })
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({ from:me.id, to:chat.id, type, data:e.target.result })
                 });
             };
             reader.readAsDataURL(file);
             document.getElementById('msgInput').focus();
         }
 
-        // --- ЗВОНКИ ---
+        // --- ВИДЕОЗВОНКИ ---
         async function startCall() {
-            if (!currentChat || !onlineUsers.has(currentChat.id)) return alert('Не в сети');
+            if (!chat || !online.has(chat.id)) return alert('Не в сети');
             document.getElementById('callWindow').style.display = 'block';
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
             document.getElementById('localVideo').srcObject = localStream;
 
-            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
             pc.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
             pc.onicecandidate = e => {
-                if (e.candidate) {
-                    socket.send(JSON.stringify({ type: 'ice', candidate: e.candidate, to: currentChat.id }));
-                }
+                if (e.candidate) socket.send(JSON.stringify({ type:'ice', candidate:e.candidate, to:chat.id }));
             };
-
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            socket.send(JSON.stringify({ type: 'call', offer, to: currentChat.id }));
+            socket.send(JSON.stringify({ type:'call', offer, to:chat.id }));
         }
 
-        function handleCallOffer(d) {
+        function handleCall(d) {
             if (!confirm('Входящий звонок. Ответить?')) return;
             document.getElementById('callWindow').style.display = 'block';
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-                localStream = stream;
-                document.getElementById('localVideo').srcObject = stream;
-
-                pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-                stream.getTracks().forEach(t => pc.addTrack(t, stream));
+            navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(s => {
+                localStream = s;
+                document.getElementById('localVideo').srcObject = s;
+                pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
+                s.getTracks().forEach(t => pc.addTrack(t, s));
                 pc.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
                 pc.onicecandidate = e => {
-                    if (e.candidate) {
-                        socket.send(JSON.stringify({ type: 'ice', candidate: e.candidate, to: d.from }));
-                    }
+                    if (e.candidate) socket.send(JSON.stringify({ type:'ice', candidate:e.candidate, to:d.from }));
                 };
-
                 pc.setRemoteDescription(new RTCSessionDescription(d.offer));
                 pc.createAnswer().then(ans => {
                     pc.setLocalDescription(ans);
-                    socket.send(JSON.stringify({ type: 'answer', answer: ans, to: d.from }));
+                    socket.send(JSON.stringify({ type:'answer', answer:ans, to:d.from }));
                 });
             });
         }
@@ -538,7 +482,10 @@
             document.getElementById('callWindow').style.display = 'none';
         }
 
-        // --- ВСПОМОГАТЕЛЬНОЕ ---
+        function updateChatStatus() {
+            if (chat) document.getElementById('chatStatus').innerText = online.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+        }
+
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -546,45 +493,21 @@
             renderList();
         }
 
-        function updateChatStatus() {
-            if (currentChat) {
-                document.getElementById('chatStatus').innerText = onlineUsers.has(currentChat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
-            }
-        }
-
         function showProfile() {
-            document.getElementById('messages').innerHTML = `
-                <div style="text-align:center;padding:50px">
-                    <h2>${me.name}</h2>
-                    <p>ID: ${me.id}</p>
-                    <p>Статус: онлайн</p>
-                </div>
-            `;
+            document.getElementById('messages').innerHTML = `<div style="text-align:center;padding:50px"><h2>${me.name}</h2><p>ID: ${me.id}</p></div>`;
         }
 
-        // --- ИНИЦИАЛИЗАЦИЯ ---
         document.getElementById('sendBtn').onclick = sendMessage;
-        document.getElementById('msgInput').onkeypress = e => {
-            if (e.key === 'Enter') sendMessage();
-        };
+        document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
         document.getElementById('msgInput').addEventListener('paste', (e) => {
-            const items = e.clipboardData.items;
-            for (let item of items) {
+            for (let item of e.clipboardData.items) {
                 if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    document.getElementById('fileInput').files = new FileList([file]);
+                    document.getElementById('fileInput').files = new FileList([item.getAsFile()]);
                     sendFile();
                     e.preventDefault();
                 }
             }
         });
-
-        // автоматический вход для теста (убери если надо)
-        // setTimeout(() => {
-        //     document.getElementById('loginName').value = 'test';
-        //     document.getElementById('loginPass').value = '123';
-        //     login();
-        // }, 100);
     </script>
 </body>
 </html>
