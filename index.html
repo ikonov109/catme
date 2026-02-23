@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe</title>
+    <title>CatMe — Мессенджер</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -40,6 +40,7 @@
             align-items: center;
             gap: 10px;
             border-bottom: 1px solid #ccc;
+            cursor: pointer;
         }
         .avatar {
             width: 40px;
@@ -65,7 +66,12 @@
             border-bottom: 1px solid #ccc;
         }
         .contact:hover { background: #e9ecef; }
-        .online { width: 10px; height: 10px; border-radius: 50%; margin-left: auto; }
+        .online {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
         .online.true { background: #10b981; }
         .online.false { background: #9ca3af; }
         .chat {
@@ -260,7 +266,7 @@
             socket.onclose = () => setTimeout(connect, 2000);
         }
 
-        // вход/регистрация
+        // вход / регистрация
         async function login() {
             const n = document.getElementById('loginName').value.trim();
             const p = document.getElementById('loginPass').value;
@@ -321,8 +327,12 @@
             const list = await r.json();
             document.getElementById('messages').innerHTML = '';
             list.forEach(m => addMsg(m));
+            // ✅ фикс: разблокировка поля ввода
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
         }
         function addMsg(m) {
+            if (!chat) return;
             const div = document.createElement('div');
             div.className = `msg ${m.from === me.id ? 'sent' : 'recv'}`;
             if (m.type === 'text') div.innerHTML = `<div class="bubble">${m.data}</div>`;
@@ -355,6 +365,10 @@
                     body:JSON.stringify({ from:me.id, to:chat.id, type, data:e.target.result })
                 });
                 addMsg({ from:me.id, to:chat.id, type, data:e.target.result });
+
+                // ✅ фикс: возвращаем фокус в поле ввода
+                document.getElementById('msgInput').disabled = false;
+                document.getElementById('msgInput').focus();
             };
             r.readAsDataURL(f);
         }
@@ -396,7 +410,7 @@
             document.getElementById('callWindow').style.display = 'none';
         }
         function updateStatus() {
-            document.getElementById('chatStatus').innerText = chat && online.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
+            if (chat) document.getElementById('chatStatus').innerText = online.has(chat.id) ? '🟢 Онлайн' : '⚫ Офлайн';
         }
         function profile() {
             document.getElementById('messages').innerHTML = `<div style="text-align:center;padding:50px"><h2>${me.name}</h2><p>id: ${me.id}</p></div>`;
