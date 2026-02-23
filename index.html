@@ -282,6 +282,13 @@
 
         function selectChat(u) {
             chat = u;
+            
+            // ==== ВАЖНО: принудительно включаем поле ====
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('msgInput').focus();
+            // ===========================================
+            
             document.getElementById('chatName').innerText = u.name;
             document.getElementById('chatAvatar').innerText = u.avatar;
             document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
@@ -317,6 +324,7 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
+            inp.focus(); // возвращаем фокус после отправки
         }
 
         function updateStatus() {
@@ -329,7 +337,6 @@
 
         document.getElementById('sendBtn').onclick = sendMessage;
         document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
-        document.getElementById('msgInput').focus = function(){}; // защита от лишнего
     </script>
 </body>
 </html>
