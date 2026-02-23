@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — чат, звонки, файлы</title>
+    <title>CatMe — Мессенджер</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -249,7 +249,6 @@
         let users = [], groups = [], channels = [];
         let currentTab = 'users';
 
-        // --- WEBSOCKET (работает 100%) ---
         function connect() {
             socket = new WebSocket(WS);
             socket.onopen = () => {
@@ -274,7 +273,6 @@
             socket.onclose = () => setTimeout(connect, 1000);
         }
 
-        // --- АВТОРИЗАЦИЯ (РЕГА + ВХОД) ---
         async function login() {
             const n = document.getElementById('loginName').value.trim();
             const p = document.getElementById('loginPass').value;
@@ -309,16 +307,13 @@
             renderList();
         }
 
-        // --- СПИСОК КОНТАКТОВ ---
         function renderList() {
             const list = document.getElementById('contacts');
             list.innerHTML = '';
 
             if (currentTab === 'users') {
-                // боты
                 [{id:'cat1',name:'Мурзик',avatar:'🐱'},{id:'cat2',name:'Барсик',avatar:'😸'},{id:'cat3',name:'Рыжик',avatar:'😻'}]
                     .forEach(b => list.appendChild(contactDiv(b, true)));
-                // люди
                 users.filter(u => u.id !== me?.id).forEach(u =>
                     list.appendChild(contactDiv(u, online.has(u.id)))
                 );
@@ -365,17 +360,23 @@
             renderList();
         }
 
-        // --- ВЫБОР ЧАТА ---
         function selectChat(c) {
             chat = c;
             document.getElementById('chatName').innerText = c.name;
             document.getElementById('chatAvatar').innerText = c.avatar || c.name[0];
             document.getElementById('chatStatus').innerText = online.has(c.id) ? '🟢 Онлайн' : '⚫ Офлайн';
-            document.getElementById('msgInput').disabled = false;
-            document.getElementById('sendBtn').disabled = false;
+            
+            // ✅ ВАЖНО: поле ввода всегда включается
+            const input = document.getElementById('msgInput');
+            const sendBtn = document.getElementById('sendBtn');
+            input.disabled = false;
+            sendBtn.disabled = false;
+            
             document.getElementById('callBtn').style.display = (c.id && !c.id.startsWith('cat')) ? 'inline' : 'none';
             loadHistory(c.id);
-            document.getElementById('msgInput').focus();
+            
+            // ✅ Фокус на поле
+            setTimeout(() => input.focus(), 100);
         }
 
         async function loadHistory(id) {
@@ -401,10 +402,9 @@
             div.scrollIntoView();
         }
 
-        // --- ОТПРАВКА СООБЩЕНИЙ (ЧИНИМ) ---
         function sendMessage() {
-            const inp = document.getElementById('msgInput');
-            const text = inp.value.trim();
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
             if (!text || !chat || !socket) return;
 
             const msg = {
@@ -415,7 +415,10 @@
             };
             socket.send(JSON.stringify(msg));
             addMessage({ from: me.id, to: chat.id, data: text });
-            inp.value = '';
+            input.value = '';
+            
+            // ✅ Фокус остаётся
+            input.focus();
         }
 
         function sendFile() {
@@ -433,12 +436,13 @@
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({ from:me.id, to:chat.id, type, data:e.target.result })
                 });
+                
+                // ✅ Фокус возвращается
+                document.getElementById('msgInput').focus();
             };
             reader.readAsDataURL(file);
-            document.getElementById('msgInput').focus();
         }
 
-        // --- ВИДЕОЗВОНКИ ---
         async function startCall() {
             if (!chat || !online.has(chat.id)) return alert('Не в сети');
             document.getElementById('callWindow').style.display = 'block';
