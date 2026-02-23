@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — финал</title>
+    <title>CatMe — стабильный</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -183,8 +183,8 @@
             </div>
             <div class="messages" id="messages"></div>
             <div class="input">
-                <input type="text" id="msgInput" placeholder="Сообщение..." disabled>
-                <button id="sendBtn" disabled>➤</button>
+                <input type="text" id="msgInput" placeholder="Сообщение...">
+                <button id="sendBtn">➤</button>
             </div>
         </div>
     </div>
@@ -285,14 +285,6 @@
             document.getElementById('chatName').innerText = u.name;
             document.getElementById('chatAvatar').innerText = u.avatar;
             document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
-            
-            // ПОЛЕ ТОЧНО ВКЛЮЧАЕТСЯ
-            const inp = document.getElementById('msgInput');
-            const btn = document.getElementById('sendBtn');
-            inp.disabled = false;
-            btn.disabled = false;
-            inp.focus();
-
             loadHistory(u.id);
         }
 
@@ -325,7 +317,6 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
-            inp.focus(); // ВОЗВРАЩАЕМ ФОКУС
         }
 
         function updateStatus() {
@@ -338,6 +329,7 @@
 
         document.getElementById('sendBtn').onclick = sendMessage;
         document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
+        document.getElementById('msgInput').focus = function(){}; // защита от лишнего
     </script>
 </body>
 </html>
