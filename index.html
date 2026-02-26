@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>🐱 CatMe - кошачий мессенджер</title>
+    <title>CatMe — милый мессенджер</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -207,14 +207,13 @@
 
         let socket, me, chat, online = new Set(), users = [];
 
-        // === Сторож поля ввода (каждые 2 секунды проверяет и снимает блокировку) ===
+        // ===== АВАРИЙНОЕ ВКЛЮЧЕНИЕ ПОЛЯ (каждую секунду) =====
         setInterval(() => {
             const inp = document.getElementById('msgInput');
-            if (inp && inp.disabled && chat) {
+            if (inp) {
                 inp.disabled = false;
-                console.log('🔓 поле разблокировано');
             }
-        }, 2000);
+        }, 1000);
 
         function connect() {
             socket = new WebSocket(WS);
@@ -292,10 +291,8 @@
         function selectChat(u) {
             chat = u;
             
-            // === Принудительное включение поля ===
-            const inp = document.getElementById('msgInput');
-            inp.disabled = false;
-            inp.focus();
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('msgInput').focus();
             document.getElementById('sendBtn').disabled = false;
             
             document.getElementById('chatName').innerText = u.name;
@@ -333,7 +330,7 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
-            inp.focus(); // фокус после отправки
+            inp.focus();
         }
 
         function updateStatus() {
