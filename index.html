@@ -344,5 +344,14 @@
         document.getElementById('sendBtn').onclick = sendMessage;
         document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
     </script>
+    // Жёсткая фиксация фокуса
+let forcedInput = document.getElementById('msgInput');
+if (forcedInput) {
+    forcedInput.addEventListener('blur', (e) => {
+        setTimeout(() => {
+            if (chat) forcedInput.focus();
+        }, 10);
+    });
+}
 </body>
 </html>
