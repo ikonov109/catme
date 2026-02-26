@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — поле ПОБЕДА</title>
+    <title>CatMe — полностью исправлен</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -111,8 +111,6 @@
             gap: 10px;
             background: white;
             border-top: 1px solid #ccc;
-            position: relative;
-            z-index: 9999;
         }
         .input input {
             flex: 1;
@@ -120,9 +118,6 @@
             border: 2px solid #ccc;
             border-radius: 25px;
             outline: none;
-            background: white;
-            color: black;
-            pointer-events: auto;
         }
         .input button {
             padding: 12px 24px;
@@ -132,7 +127,6 @@
             border-radius: 25px;
             cursor: pointer;
             font-weight: bold;
-            pointer-events: auto;
         }
         .login {
             position: absolute; top:0; left:0; right:0; bottom:0;
@@ -213,16 +207,40 @@
 
         let socket, me, chat, online = new Set(), users = [];
 
-        // ===== БЕЗУСЛОВНОЕ УДЕРЖАНИЕ ФОКУСА =====
+        // ===== ФУНКЦИЯ ПРИНУДИТЕЛЬНОГО ПЕРЕСОЗДАНИЯ ПОЛЯ =====
+        function recreateInput() {
+            const oldInp = document.getElementById('msgInput');
+            if (!oldInp) return;
+            const newInp = document.createElement('input');
+            newInp.id = 'msgInput';
+            newInp.type = 'text';
+            newInp.placeholder = 'Сообщение...';
+            // копируем стили (на всякий случай)
+            newInp.style.cssText = oldInp.style.cssText;
+            oldInp.parentNode.replaceChild(newInp, oldInp);
+            console.log('✅ поле пересоздано');
+            
+            // Переназначаем обработчики на новое поле
+            const btn = document.getElementById('sendBtn');
+            if (btn) {
+                // Убираем старые обработчики (но проще назначить заново)
+                btn.onclick = sendMessage;
+            }
+            newInp.onkeypress = (e) => {
+                if (e.key === 'Enter') sendMessage();
+            };
+        }
+
+        // Выполняем замену поля после полной загрузки страницы
+        window.addEventListener('load', recreateInput);
+
+        // ===== АВАРИЙНОЕ ВКЛЮЧЕНИЕ (на всякий случай) =====
         setInterval(() => {
             const inp = document.getElementById('msgInput');
-            if (inp && chat) {
+            if (inp && inp.disabled) {
                 inp.disabled = false;
-                if (document.activeElement !== inp) {
-                    inp.focus();
-                }
             }
-        }, 100);
+        }, 1000);
 
         function connect() {
             socket = new WebSocket(WS);
@@ -299,6 +317,11 @@
 
         function selectChat(u) {
             chat = u;
+            
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('msgInput').focus();
+            document.getElementById('sendBtn').disabled = false;
+            
             document.getElementById('chatName').innerText = u.name;
             document.getElementById('chatAvatar').innerText = u.avatar;
             document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
@@ -334,6 +357,7 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
+            inp.focus();
         }
 
         function updateStatus() {
@@ -344,8 +368,11 @@
             document.getElementById('messages').innerHTML = `<div style="text-align:center;padding:50px"><h2>${me.name}</h2><p>ID: ${me.id}</p></div>`;
         }
 
+        // Назначаем обработчики (ещё раз, для надёжности)
         document.getElementById('sendBtn').onclick = sendMessage;
-        document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
+        document.getElementById('msgInput').onkeypress = (e) => {
+            if (e.key === 'Enter') sendMessage();
+        };
     </script>
 </body>
 </html>
