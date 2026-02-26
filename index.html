@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>CatMe — милый мессенджер</title>
+    <title>CatMe — поле ПОБЕДА</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -111,6 +111,8 @@
             gap: 10px;
             background: white;
             border-top: 1px solid #ccc;
+            position: relative;
+            z-index: 9999;
         }
         .input input {
             flex: 1;
@@ -118,6 +120,9 @@
             border: 2px solid #ccc;
             border-radius: 25px;
             outline: none;
+            background: white;
+            color: black;
+            pointer-events: auto;
         }
         .input button {
             padding: 12px 24px;
@@ -127,6 +132,7 @@
             border-radius: 25px;
             cursor: pointer;
             font-weight: bold;
+            pointer-events: auto;
         }
         .login {
             position: absolute; top:0; left:0; right:0; bottom:0;
@@ -207,13 +213,16 @@
 
         let socket, me, chat, online = new Set(), users = [];
 
-        // ===== АВАРИЙНОЕ ВКЛЮЧЕНИЕ ПОЛЯ (каждую секунду) =====
+        // ===== БЕЗУСЛОВНОЕ УДЕРЖАНИЕ ФОКУСА =====
         setInterval(() => {
             const inp = document.getElementById('msgInput');
-            if (inp) {
+            if (inp && chat) {
                 inp.disabled = false;
+                if (document.activeElement !== inp) {
+                    inp.focus();
+                }
             }
-        }, 1000);
+        }, 100);
 
         function connect() {
             socket = new WebSocket(WS);
@@ -290,11 +299,6 @@
 
         function selectChat(u) {
             chat = u;
-            
-            document.getElementById('msgInput').disabled = false;
-            document.getElementById('msgInput').focus();
-            document.getElementById('sendBtn').disabled = false;
-            
             document.getElementById('chatName').innerText = u.name;
             document.getElementById('chatAvatar').innerText = u.avatar;
             document.getElementById('chatStatus').innerText = online.has(u.id) ? '🟢 Онлайн' : '⚫ Офлайн';
@@ -330,7 +334,6 @@
             socket.send(JSON.stringify(msg));
             renderMessage({ from: me.id, to: chat.id, data: text });
             inp.value = '';
-            inp.focus();
         }
 
         function updateStatus() {
@@ -344,14 +347,5 @@
         document.getElementById('sendBtn').onclick = sendMessage;
         document.getElementById('msgInput').onkeypress = e => e.key === 'Enter' && sendMessage();
     </script>
-    // Жёсткая фиксация фокуса
-let forcedInput = document.getElementById('msgInput');
-if (forcedInput) {
-    forcedInput.addEventListener('blur', (e) => {
-        setTimeout(() => {
-            if (chat) forcedInput.focus();
-        }, 10);
-    });
-}
 </body>
 </html>
